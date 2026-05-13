@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  VIEWER
+}
+
+enum PriceField {
+  UAE_PRICE
+  IR_PRICE
+}
+
+enum SyncStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+model User {
+  id           String          @id @default(cuid())
+  username     String          @unique
+  passwordHash String
+  role         Role            @default(VIEWER)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  audits       PriceAuditLog[]
+}
+
+model CachedProduct {
+  id           String         @id @default(cuid())
+  odooId       Int            @unique
+  name         String
+  barcode      String?
+  qtyAvailable Decimal        @db.Decimal(18, 4)
+  sourceHash   String?
+  lastFetchedAt DateTime       @default(now())
+  staleAt      DateTime
+  lastAccessedAt DateTime      @default(now())
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  price        RegionalPrice?
+  audits       PriceAuditLog[]
+
+  @@index([name])
+  @@index([barcode])
+  @@index([staleAt])
+  @@index([lastAccessedAt])
+}
+
+model RegionalPrice {
+  id             String        @id @default(cuid())
+  productId      String        @unique
+  uaePriceAed    BigInt?
+  uaeUpdatedAt   DateTime?
+  irPriceIrr     BigInt?
+  irUpdatedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  product        CachedProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([uaeUpdatedAt])
+  @@index([irUpdatedAt])
+}
+
+model PriceAuditLog {
+  id            String        @id @default(cuid())
+  productId     String
+  changedField  PriceField
+  previousValue BigInt?
+  newValue      BigInt?
+  changedAt     DateTime      @default(now())
+  changedById   String?
+  product       CachedProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  changedBy     User?         @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([productId, changedAt])
+  @@index([changedById])
+}
+
+model CacheMetadata {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model OdooRequestLog {
+  id          String   @id @default(cuid())
+  method      String
+  model       String?
+  durationMs  Int
+  status      String
+  errorCode   String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+model OdooRetryQueue {
+  id          String     @id @default(cuid())
+  operation   String
+  payload     Json
+  status      SyncStatus @default(PENDING)
+  attempts    Int        @default(0)
+  lastError   String?
+  nextRunAt   DateTime   @default(now())
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([status, nextRunAt])
+}
