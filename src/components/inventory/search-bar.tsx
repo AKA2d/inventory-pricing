@@ -13,8 +13,8 @@ type SearchBarProps = {
 
 export function SearchBar({ value, isSearching, onChange, onSearch }: SearchBarProps) {
   return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-center">
-      <div className="relative flex-1">
+    <div className="flex w-full flex-col gap-3 xl:flex-row xl:items-center">
+      <div className="relative w-full flex-1 xl:max-w-4xl">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden />
         <Input
           value={value}
@@ -26,11 +26,11 @@ export function SearchBar({ value, isSearching, onChange, onSearch }: SearchBarP
             }
           }}
           placeholder="Search by product name or barcode"
-          className="pl-9"
+          className="h-11 w-full pl-9"
           aria-label="Search inventory products"
         />
       </div>
-      <Button onClick={onSearch} disabled={isSearching}>
+      <Button onClick={onSearch} disabled={isSearching} className="h-11 px-5 xl:self-stretch">
         {isSearching ? "Searching..." : "Search"}
       </Button>
     </div>
