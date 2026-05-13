@@ -2,9 +2,28 @@ services:
   app:
     build:
       context: .
+      args:
+        - DATABASE_URL=${DATABASE_URL}
+        - DATABASE_URL=${DATABASE_URL}
+        - DATABASE_URL=${DATABASE_URL}
+        - SESSION_SECRET=${SESSION_SECRET}
+        - ODOO_URL=${ODOO_URL}
+        - ODOO_DB=${ODOO_DB}
+        - ODOO_USERNAME=${ODOO_USERNAME}
+        - ODOO_API_KEY=${ODOO_API_KEY}
       dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - ODOO_URL=${ODOO_URL}
+      - ODOO_DB=${ODOO_DB}
+      - ODOO_USERNAME=${ODOO_USERNAME}
+      - ODOO_API_KEY=${ODOO_API_KEY}
+
+
     env_file:
-      - .env.example
+      - .env
     ports:
       - "3000:3000"
     depends_on:
@@ -31,3 +50,8 @@ services:
 
 volumes:
   postgres_data:
+
+
+
+
+
