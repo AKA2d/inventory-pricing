@@ -223,6 +223,12 @@ export function InventoryDashboard({ canEdit, username }: DashboardProps) {
   };
 
   const sortedRows = sortRows(result.rows, sortField, sortDirection);
+  const gridStateKey = `${submittedQuery}:${page}:${pageSize}:${sortedRows
+    .map(
+      (row) =>
+        `${row.productId}:${row.uaePriceAed ?? "null"}:${row.irPriceIrr ?? "null"}:${row.uaeUpdatedAt ?? "null"}:${row.irUpdatedAt ?? "null"}`,
+    )
+    .join("|")}`;
 
   return (
     <div className="space-y-6">
@@ -290,7 +296,7 @@ export function InventoryDashboard({ canEdit, username }: DashboardProps) {
           </section>
 
           <InventoryGrid
-            key={`${submittedQuery}:${page}:${pageSize}`}
+            key={gridStateKey}
             rows={sortedRows}
             canEdit={canEdit}
             saving={isSaving}
