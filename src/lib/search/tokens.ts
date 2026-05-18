@@ -3,6 +3,6 @@ export function tokenizeSearch(input: string) {
     .trim()
     .toLowerCase()
     .split(/\s+/)
-    .map((token) => token.replace(/[^\p{L}\p{N}_-]+/gu, ""))
+    .map((token) => token.replace(/[^\p{L}\p{N}_.-]+/gu, ""))
     .filter(Boolean);
 }
