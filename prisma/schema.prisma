@@ -47,9 +47,6 @@ model CachedProduct {
   updatedAt    DateTime       @updatedAt
   price        RegionalPrice?
   audits       PriceAuditLog[]
-  shippingCost Int?           @db.Integer
-  uaeProfitMargin Decimal?       @db.Decimal(5, 2)
-  irProfitMargin Decimal?        @db.Decimal(5, 2)
   competitorPrice CompetitorsPrice?
   lastSellingPrice Int?           @db.Integer //irPriceIrr * irprofitMargin
   priceRatio  Decimal?      @db.Decimal(5,2)  //priceirPriceIrr / aed price
@@ -79,6 +76,9 @@ model RegionalPrice {
   uaeUpdatedAt   DateTime?
   irPriceIrr     BigInt?
   irUpdatedAt    DateTime?
+  shippingCost Int?           @db.Integer
+  uaeProfitMargin Decimal?       @db.Decimal(5, 2)
+  irProfitMargin Decimal?        @db.Decimal(5, 2)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   product        CachedProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
