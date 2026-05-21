@@ -1,11 +1,12 @@
 import { createHash } from "crypto";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, Role } from "@/generated/prisma/client";
 import { env } from "@/lib/config/env";
 import { OdooError } from "@/lib/odoo/client";
 import { fetchOdooProductsByIds, searchOdooProducts } from "@/lib/odoo/product-service";
 import { prisma } from "@/lib/prisma";
 import { tokenizeSearch } from "@/lib/search/tokens";
 import type { ProductRowDto } from "@/lib/products/dto";
+import { getSession } from "../auth/session";
 
 const TTL_MS = env.PRODUCT_CACHE_TTL_SECONDS * 1000;
 
@@ -42,6 +43,7 @@ function cacheWhere(tokens: string[]): Prisma.CachedProductWhereInput {
 
 async function cachedRows(tokens: string[], page: number, pageSize: number) {
   const where = cacheWhere(tokens);
+  const session = await getSession()
   const [items, total] = await prisma.$transaction([
     prisma.cachedProduct.findMany({
       where,
@@ -60,10 +62,20 @@ async function cachedRows(tokens: string[], page: number, pageSize: number) {
     });
   }
 
+  items.forEach(
+    item => {
+      if (session?.role !== Role.ADMIN && item.price){
+        item.price.uaePriceAed = null
+        item.price.uaePriceAed = null
+      }
+    }
+  )
+  
+  
   return { rows: items.map(toRow), total };
 }
 
-export async function searchProducts(query: string, page: number, pageSize: number) {
+export async function searchProducts(query: string, page: number, pageSize: number,role: string="") {
   const tokens = tokenizeSearch(query);
   if (tokens.length === 0) return { rows: [], total: 0, source: "cache" as const };
 

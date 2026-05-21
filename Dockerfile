@@ -3,6 +3,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json package-lock.json* ./
+RUN npm config set registry https://package-mirror.liara.ir/repository/npm/ --global
 RUN npm ci
 
 FROM base AS builder
