@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUpDown, Check, ChevronDown, ChevronUp, LoaderCircle, Save } from "lucide-react";
+import {
+  ArrowUpDown,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  LoaderCircle,
+  Save,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +34,13 @@ type InventoryGridProps = {
   rows: InventoryRow[];
   canEdit: boolean;
   saving: boolean;
-  onSave: (updates: Array<{ productId: string; uaePriceAed: number | null; irPriceIrr: number | null }>) => Promise<void>;
+  onSave: (
+    updates: Array<{
+      productId: string;
+      uaePriceAed: number | null;
+      irPriceIrr: number | null;
+    }>,
+  ) => Promise<void>;
   sortField: SortField;
   sortDirection: "asc" | "desc";
   onSortChange: (field: SortField) => void;
@@ -43,7 +56,11 @@ type PriceInputCellProps = {
   isActive: boolean;
   onFocusField: (productId: string, field: keyof DraftPrice) => void;
   onBlurField: (productId: string, field: keyof DraftPrice) => void;
-  onChangeField: (productId: string, field: keyof DraftPrice, value: string) => void;
+  onChangeField: (
+    productId: string,
+    field: keyof DraftPrice,
+    value: string,
+  ) => void;
   onSubmitRow: (productId: string) => Promise<void>;
 };
 
@@ -114,10 +131,14 @@ function PriceInputCell({
 }: PriceInputCellProps) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-8 text-xs font-medium uppercase tracking-wide text-slate-400">{currency}</span>
+      <span className="w-8 text-xs font-medium uppercase tracking-wide text-slate-400">
+        {currency}
+      </span>
       <Input
         value={value}
-        onChange={(event) => onChangeField(row.productId, field, event.target.value)}
+        onChange={(event) =>
+          onChangeField(row.productId, field, event.target.value)
+        }
         onFocus={(event) => {
           onFocusField(row.productId, field);
           event.target.select();
@@ -149,7 +170,11 @@ function PriceInputCell({
             await onSubmitRow(row.productId);
           }}
         >
-          {saving ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />}
+          {saving ? (
+            <LoaderCircle className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Check className="size-4" aria-hidden />
+          )}
         </Button>
       ) : null}
     </div>
@@ -165,20 +190,34 @@ export function InventoryGrid({
   sortDirection,
   onSortChange,
 }: InventoryGridProps) {
-  const [drafts, setDrafts] = useState<Record<string, DraftPrice>>(() => initialDraft(rows));
+  const [drafts, setDrafts] = useState<Record<string, DraftPrice>>(() =>
+    initialDraft(rows),
+  );
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
-  const lastFocusedRef = useRef<{ productId: string; field: keyof DraftPrice } | null>(null);
-  const [activeField, setActiveField] = useState<{ productId: string; field: keyof DraftPrice } | null>(null);
+  const lastFocusedRef = useRef<{
+    productId: string;
+    field: keyof DraftPrice;
+  } | null>(null);
+  const [activeField, setActiveField] = useState<{
+    productId: string;
+    field: keyof DraftPrice;
+  } | null>(null);
 
   useEffect(() => {
     if (!lastFocusedRef.current) return;
     const { productId, field } = lastFocusedRef.current;
-    const element = document.querySelector<HTMLInputElement>(`input[data-product-id="${productId}"][data-field="${field}"]`);
+    const element = document.querySelector<HTMLInputElement>(
+      `input[data-product-id="${productId}"][data-field="${field}"]`,
+    );
     element?.focus();
     element?.select();
   }, [saving]);
 
-  const updateField = (productId: string, field: keyof DraftPrice, value: string) => {
+  const updateField = (
+    productId: string,
+    field: keyof DraftPrice,
+    value: string,
+  ) => {
     const sanitized = sanitizeInteger(value);
     setDrafts((current) => ({
       ...current,
@@ -192,7 +231,8 @@ export function InventoryGrid({
 
   const dirtyRows = rows.filter((row) => dirtyIds.has(row.productId));
 
-  const rowsForIds = (rowIds: string[]) => rows.filter((row) => rowIds.includes(row.productId));
+  const rowsForIds = (rowIds: string[]) =>
+    rows.filter((row) => rowIds.includes(row.productId));
 
   const buildUpdates = (targetRows: InventoryRow[]) =>
     targetRows.map((row) => {
@@ -208,7 +248,9 @@ export function InventoryGrid({
   const submitRows = async (targetRows: InventoryRow[]) => {
     const invalid = targetRows.find((row) => {
       const draft = getDraftValue(drafts, row.productId);
-      return [draft.uaePriceAed, draft.irPriceIrr].some((value) => !isValidWholeNumberInput(value));
+      return [draft.uaePriceAed, draft.irPriceIrr].some(
+        (value) => !isValidWholeNumberInput(value),
+      );
     });
 
     if (invalid) {
@@ -241,8 +283,15 @@ export function InventoryGrid({
           {dirtyIds.size > 0 ? ` • ${dirtyIds.size} unsaved` : ""}
         </p>
         {canEdit ? (
-          <Button onClick={submitAllDirtyRows} disabled={saving || dirtyIds.size === 0}>
-            {saving ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
+          <Button
+            onClick={submitAllDirtyRows}
+            disabled={saving || dirtyIds.size === 0}
+          >
+            {saving ? (
+              <LoaderCircle className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Save className="size-4" aria-hidden />
+            )}
             Save
           </Button>
         ) : null}
@@ -253,7 +302,10 @@ export function InventoryGrid({
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-950 dark:text-slate-400">
             <tr>
               {sortableColumns.map((column) => (
-                <th key={column.label} className="border-b border-slate-200 px-3 py-3 font-medium dark:border-slate-800">
+                <th
+                  key={column.label}
+                  className="border-b border-slate-200 px-3 py-3 font-medium dark:border-slate-800"
+                >
                   {column.key ? (
                     <button
                       type="button"
@@ -262,9 +314,16 @@ export function InventoryGrid({
                     >
                       <span>{column.label}</span>
                       {sortField === column.key ? (
-                        sortDirection === "asc" ? <ChevronUp className="size-4" aria-hidden /> : <ChevronDown className="size-4" aria-hidden />
+                        sortDirection === "asc" ? (
+                          <ChevronUp className="size-4" aria-hidden />
+                        ) : (
+                          <ChevronDown className="size-4" aria-hidden />
+                        )
                       ) : (
-                        <ArrowUpDown className="size-4 text-slate-400" aria-hidden />
+                        <ArrowUpDown
+                          className="size-4 text-slate-400"
+                          aria-hidden
+                        />
                       )}
                     </button>
                   ) : (
@@ -276,14 +335,25 @@ export function InventoryGrid({
           </thead>
           <tbody>
             {rows.map((row, index) => (
-              <tr key={row.productId} className="border-b border-slate-100 align-top last:border-b-0 dark:border-slate-800/70">
+              <tr
+                key={row.productId}
+                className="border-b border-slate-100 align-top last:border-b-0 dark:border-slate-800/70"
+              >
                 <td className="px-3 py-3 text-slate-500">{index + 1}</td>
-                <td className="px-3 py-3 font-medium text-slate-700 dark:text-slate-200">{row.odooId}</td>
-                <td className="px-3 py-3">
-                  <div className="font-medium text-slate-950 dark:text-slate-100">{row.name}</div>
+                <td className="px-3 py-3 font-medium text-slate-700 dark:text-slate-200">
+                  {row.odooId}
                 </td>
-                <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{row.barcode ?? "—"}</td>
-                <td className="px-3 py-3 tabular-nums text-slate-700 dark:text-slate-200">{formatNumber(row.qtyAvailable)}</td>
+                <td className="px-3 py-3">
+                  <div className="font-medium text-slate-950 dark:text-slate-100">
+                    {row.name}
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-slate-600 dark:text-slate-300">
+                  {row.barcode ?? "—"}
+                </td>
+                <td className="px-3 py-3 tabular-nums text-slate-700 dark:text-slate-200">
+                  {formatNumber(row.qtyAvailable)}
+                </td>
                 <td className="px-3 py-3">
                   {canEdit ? (
                     <PriceInputCell
@@ -293,14 +363,20 @@ export function InventoryGrid({
                       value={drafts[row.productId]?.uaePriceAed ?? ""}
                       canEdit={canEdit}
                       saving={saving}
-                      isActive={activeField?.productId === row.productId && activeField.field === "uaePriceAed"}
+                      isActive={
+                        activeField?.productId === row.productId &&
+                        activeField.field === "uaePriceAed"
+                      }
                       onFocusField={(productId, field) => {
                         lastFocusedRef.current = { productId, field };
                         setActiveField({ productId, field });
                       }}
                       onBlurField={(productId, field) => {
                         setActiveField((current) =>
-                          current?.productId === productId && current.field === field ? null : current,
+                          current?.productId === productId &&
+                          current.field === field
+                            ? null
+                            : current,
                         );
                       }}
                       onChangeField={updateField}
@@ -310,7 +386,9 @@ export function InventoryGrid({
                     <span>{formatNumber(row.uaePriceAed) || "—"}</span>
                   )}
                 </td>
-                <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{formatDateTime(row.uaeUpdatedAt)}</td>
+                <td className="px-3 py-3 text-slate-600 dark:text-slate-300">
+                  {formatDateTime(row.uaeUpdatedAt)}
+                </td>
                 <td className="px-3 py-3">
                   {canEdit ? (
                     <PriceInputCell
@@ -320,14 +398,20 @@ export function InventoryGrid({
                       value={drafts[row.productId]?.irPriceIrr ?? ""}
                       canEdit={canEdit}
                       saving={saving}
-                      isActive={activeField?.productId === row.productId && activeField.field === "irPriceIrr"}
+                      isActive={
+                        activeField?.productId === row.productId &&
+                        activeField.field === "irPriceIrr"
+                      }
                       onFocusField={(productId, field) => {
                         lastFocusedRef.current = { productId, field };
                         setActiveField({ productId, field });
                       }}
                       onBlurField={(productId, field) => {
                         setActiveField((current) =>
-                          current?.productId === productId && current.field === field ? null : current,
+                          current?.productId === productId &&
+                          current.field === field
+                            ? null
+                            : current,
                         );
                       }}
                       onChangeField={updateField}
@@ -337,7 +421,9 @@ export function InventoryGrid({
                     <span>{formatNumber(row.irPriceIrr) || "—"}</span>
                   )}
                 </td>
-                <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{formatDateTime(row.irUpdatedAt)}</td>
+                <td className="px-3 py-3 text-slate-600 dark:text-slate-300">
+                  {formatDateTime(row.irUpdatedAt)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -346,35 +432,54 @@ export function InventoryGrid({
 
       <div className="grid gap-3 lg:hidden">
         {rows.map((row, index) => (
-          <article key={row.productId} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <article
+            key={row.productId}
+            className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+          >
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wide text-slate-400">Row {index + 1}</p>
-                <h3 className="font-medium text-slate-950 dark:text-slate-100">{row.name}</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Odoo #{row.odooId}</p>
+                <p className="text-xs uppercase tracking-wide text-slate-400">
+                  Row {index + 1}
+                </p>
+                <h3 className="font-medium text-slate-950 dark:text-slate-100">
+                  {row.name}
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Odoo #{row.odooId}
+                </p>
               </div>
               <div className="text-right text-sm text-slate-500 dark:text-slate-400">
                 <p>Barcode</p>
-                <p className="font-medium text-slate-800 dark:text-slate-200">{row.barcode ?? "—"}</p>
+                <p className="font-medium text-slate-800 dark:text-slate-200">
+                  {row.barcode ?? "—"}
+                </p>
               </div>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="text-slate-400">Inventory</dt>
-                <dd className="font-medium text-slate-900 dark:text-slate-100">{formatNumber(row.qtyAvailable)}</dd>
+                <dd className="font-medium text-slate-900 dark:text-slate-100">
+                  {formatNumber(row.qtyAvailable)}
+                </dd>
               </div>
               <div>
                 <dt className="text-slate-400">UAE updated</dt>
-                <dd className="text-slate-700 dark:text-slate-200">{formatDateTime(row.uaeUpdatedAt)}</dd>
+                <dd className="text-slate-700 dark:text-slate-200">
+                  {formatDateTime(row.uaeUpdatedAt)}
+                </dd>
               </div>
               <div>
                 <dt className="text-slate-400">IR updated</dt>
-                <dd className="text-slate-700 dark:text-slate-200">{formatDateTime(row.irUpdatedAt)}</dd>
+                <dd className="text-slate-700 dark:text-slate-200">
+                  {formatDateTime(row.irUpdatedAt)}
+                </dd>
               </div>
             </dl>
             <div className="mt-4 grid gap-3">
               <div>
-                <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">UAE price</p>
+                <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">
+                  UAE price
+                </p>
                 {canEdit ? (
                   <PriceInputCell
                     row={row}
@@ -383,25 +488,35 @@ export function InventoryGrid({
                     value={drafts[row.productId]?.uaePriceAed ?? ""}
                     canEdit={canEdit}
                     saving={saving}
-                    isActive={activeField?.productId === row.productId && activeField.field === "uaePriceAed"}
+                    isActive={
+                      activeField?.productId === row.productId &&
+                      activeField.field === "uaePriceAed"
+                    }
                     onFocusField={(productId, field) => {
                       lastFocusedRef.current = { productId, field };
                       setActiveField({ productId, field });
                     }}
                     onBlurField={(productId, field) => {
                       setActiveField((current) =>
-                        current?.productId === productId && current.field === field ? null : current,
+                        current?.productId === productId &&
+                        current.field === field
+                          ? null
+                          : current,
                       );
                     }}
                     onChangeField={updateField}
                     onSubmitRow={submitSingleRow}
                   />
                 ) : (
-                  <p className="font-medium">{formatNumber(row.uaePriceAed) || "—"}</p>
+                  <p className="font-medium">
+                    {formatNumber(row.uaePriceAed) || "—"}
+                  </p>
                 )}
               </div>
               <div>
-                <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">IR price</p>
+                <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">
+                  IR price
+                </p>
                 {canEdit ? (
                   <PriceInputCell
                     row={row}
@@ -410,21 +525,29 @@ export function InventoryGrid({
                     value={drafts[row.productId]?.irPriceIrr ?? ""}
                     canEdit={canEdit}
                     saving={saving}
-                    isActive={activeField?.productId === row.productId && activeField.field === "irPriceIrr"}
+                    isActive={
+                      activeField?.productId === row.productId &&
+                      activeField.field === "irPriceIrr"
+                    }
                     onFocusField={(productId, field) => {
                       lastFocusedRef.current = { productId, field };
                       setActiveField({ productId, field });
                     }}
                     onBlurField={(productId, field) => {
                       setActiveField((current) =>
-                        current?.productId === productId && current.field === field ? null : current,
+                        current?.productId === productId &&
+                        current.field === field
+                          ? null
+                          : current,
                       );
                     }}
                     onChangeField={updateField}
                     onSubmitRow={submitSingleRow}
                   />
                 ) : (
-                  <p className="font-medium">{formatNumber(row.irPriceIrr) || "—"}</p>
+                  <p className="font-medium">
+                    {formatNumber(row.irPriceIrr) || "—"}
+                  </p>
                 )}
               </div>
             </div>

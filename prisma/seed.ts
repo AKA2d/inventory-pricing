@@ -9,8 +9,8 @@ import { prisma } from "../src/lib/prisma";
 const seedEnv = z.object({
   ADMIN_USERNAME: z.string().min(1).default("admin"),
   ADMIN_PASSWORD: z.string().min(12).default("ChangeMeNow123!"),
-  USER_USERNAME:  z.string().min(1).default("user"),
-  USER_PASSWORD:  z.string().min(12).default("ChangeMeNow123!"),
+  USER_USERNAME: z.string().min(1).default("user"),
+  USER_PASSWORD: z.string().min(12).default("ChangeMeNow123!"),
 });
 
 async function main() {
@@ -46,6 +46,18 @@ async function main() {
     },
   });
   console.log(`Seeded normal user: ${env.USER_USERNAME}`);
+
+  //store dummy aed price of the day in cacheMetadata table
+  await prisma.cacheMetadata.create({
+    data: {
+      key: "aed_price_of_the_day",
+      value: JSON.stringify({
+        price: 1,
+        timestamp: new Date(),
+      }),
+    },
+  });
+  console.log(`Seeded dummy AED price of the day in cacheMetadata table`);
 }
 
 main()
