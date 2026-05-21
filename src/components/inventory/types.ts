@@ -8,6 +8,13 @@ export type InventoryRow = {
   uaeUpdatedAt: string | null;
   irPriceIrr: number | null;
   irUpdatedAt: string | null;
+  shippingCost: number | null;
+  lowestPrice: number | null;
+  highestPrice: number | null;
+  uaeProfitMargin: number | null;
+  irProfitMargin: number | null;
+  lastSellingPrice: number | null;
+  priceRatio?: number | null;
 };
 
 export type SearchResponse = {

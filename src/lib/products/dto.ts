@@ -13,6 +13,12 @@ export const priceUpdateSchema = z.object({
         productId: z.string().min(1),
         uaePriceAed: z.number().int().nonnegative().nullable().optional(),
         irPriceIrr: z.number().int().nonnegative().nullable().optional(),
+        shippingCost: z.number().int().nonnegative().nullable().optional(),
+        lowestPrice: z.number().int().nonnegative().nullable().optional(),
+        highestPrice: z.number().int().nonnegative().nullable().optional(),
+        uaeProfitMargin: z.number().nonnegative().nullable().optional(),
+        irProfitMargin: z.number().nonnegative().nullable().optional(),
+        lastSellingPrice: z.number().int().nonnegative().nullable().optional(),
       }),
     )
     .min(1)
@@ -29,4 +35,11 @@ export type ProductRowDto = {
   uaeUpdatedAt: string | null;
   irPriceIrr: number | null;
   irUpdatedAt: string | null;
+  shippingCost: number | null;
+  lowestPrice: number | null;
+  highestPrice: number | null;
+  uaeProfitMargin: number | null;
+  irProfitMargin: number | null;
+  lastSellingPrice: number | null;
+  priceRatio?: number | null;
 };

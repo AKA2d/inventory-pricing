@@ -89,6 +89,9 @@ export function InventoryDashboard({ canEdit, username }: DashboardProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [refreshingCache, setRefreshingCache] = useState(false);
+  const [aedPrice, setAedPrice] = useState<string>("");
+  const [updatingAedPrice, setUpdatingAedPrice] = useState(false);
+  const [currentAedPrice, setCurrentAedPrice] = useState<number | null>(null);
 
   useEffect(() => {
     if (!submittedQuery) return;
@@ -127,6 +130,26 @@ export function InventoryDashboard({ canEdit, username }: DashboardProps) {
 
     load();
   }, [page, pageSize, submittedQuery]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const resp = await fetch("/api/jobs/update-aed-price");
+        if (!resp.ok) return;
+        const payload = await resp.json();
+        if (!mounted) return;
+        const value = payload?.value?.price;
+        setCurrentAedPrice(typeof value === "number" ? value : null);
+      } catch (err) {
+        // ignore
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSearch = () => {
     const next = searchText.trim();
@@ -268,6 +291,72 @@ export function InventoryDashboard({ canEdit, username }: DashboardProps) {
                 />
                 Refresh stale cache
               </Button>
+            ) : null}
+            {canEdit ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="AED price"
+                  className="w-28 rounded-md border border-slate-200 px-2 py-1 text-sm dark:border-slate-700"
+                  value={aedPrice}
+                  onChange={(e) => setAedPrice(e.target.value)}
+                  data-testid="aed-price-input"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    if (aedPrice.trim() === "") {
+                      toast.error("Enter a price");
+                      return;
+                    }
+
+                    const parsed = Number(aedPrice);
+                    if (Number.isNaN(parsed) || parsed < 0) {
+                      toast.error("Invalid price");
+                      return;
+                    }
+
+                    setUpdatingAedPrice(true);
+                    try {
+                      const resp = await fetch("/api/jobs/update-aed-price", {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify({ price: parsed }),
+                      });
+                      const payload = await resp.json();
+                      if (!resp.ok)
+                        throw new Error(
+                          payload.error?.message ??
+                            "Failed to update AED price.",
+                        );
+                      toast.success("AED price updated");
+                      setAedPrice("");
+                      // refresh displayed current price
+                      setCurrentAedPrice(parsed);
+                    } catch (err) {
+                      toast.error(
+                        err instanceof Error
+                          ? err.message
+                          : "Failed to update AED price.",
+                      );
+                    } finally {
+                      setUpdatingAedPrice(false);
+                    }
+                  }}
+                  disabled={updatingAedPrice}
+                >
+                  Update AED price
+                </Button>
+                <div className="text-sm text-slate-600">
+                  {currentAedPrice == null ? (
+                    <span className="text-slate-400">No AED price</span>
+                  ) : (
+                    <span>Current: {currentAedPrice}</span>
+                  )}
+                </div>
+              </div>
             ) : null}
           </div>
         </div>

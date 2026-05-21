@@ -18,6 +18,13 @@ import type { InventoryRow } from "@/components/inventory/types";
 type DraftPrice = {
   uaePriceAed: string;
   irPriceIrr: string;
+  shippingCost: string;
+  lowestPrice: string;
+  highestPrice: string;
+  uaeProfitMargin: string;
+  irProfitMargin: string;
+  lastSellingPrice: string;
+  priceRatio: string;
 };
 
 type SortField =
@@ -74,6 +81,13 @@ const sortableColumns: Array<{ key: SortField | null; label: string }> = [
   { key: "uaeUpdatedAt", label: "UAE updated" },
   { key: "irPriceIrr", label: "IR price" },
   { key: "irUpdatedAt", label: "IR updated" },
+  { key: null, label: "Shipping" },
+  { key: null, label: "UAE margin" },
+  { key: null, label: "IR margin" },
+  { key: null, label: "Comp lowest" },
+  { key: null, label: "Comp highest" },
+  { key: null, label: "Last sell" },
+  { key: null, label: "Price ratio" },
 ];
 
 function initialDraft(rows: InventoryRow[]) {
@@ -83,6 +97,16 @@ function initialDraft(rows: InventoryRow[]) {
       {
         uaePriceAed: row.uaePriceAed == null ? "" : String(row.uaePriceAed),
         irPriceIrr: row.irPriceIrr == null ? "" : String(row.irPriceIrr),
+        shippingCost: row.shippingCost == null ? "" : String(row.shippingCost),
+        lowestPrice: row.lowestPrice == null ? "" : String(row.lowestPrice),
+        highestPrice: row.highestPrice == null ? "" : String(row.highestPrice),
+        uaeProfitMargin:
+          row.uaeProfitMargin == null ? "" : String(row.uaeProfitMargin),
+        irProfitMargin:
+          row.irProfitMargin == null ? "" : String(row.irProfitMargin),
+        lastSellingPrice:
+          row.lastSellingPrice == null ? "" : String(row.lastSellingPrice),
+        priceRatio: row.priceRatio == null ? "" : String(row.priceRatio),
       },
     ]),
   ) as Record<string, DraftPrice>;
@@ -92,7 +116,20 @@ function getDraftValue(
   drafts: Record<string, DraftPrice>,
   productId: string,
 ): DraftPrice {
-  return drafts[productId] ?? { uaePriceAed: "", irPriceIrr: "" };
+  return (
+    drafts[productId] ??
+    ({
+      uaePriceAed: "",
+      irPriceIrr: "",
+      shippingCost: "",
+      lowestPrice: "",
+      highestPrice: "",
+      uaeProfitMargin: "",
+      irProfitMargin: "",
+      lastSellingPrice: "",
+      priceRatio: "",
+    } as DraftPrice)
+  );
 }
 
 function normalizeDigits(value: string) {
@@ -105,15 +142,30 @@ function sanitizeInteger(value: string) {
   return normalizeDigits(value).replace(/[^\d]/g, "");
 }
 
+function sanitizeNumberAllowDecimal(value: string) {
+  return normalizeDigits(value).replace(/[^\d.]/g, "");
+}
+
 function parseNullableInt(value: string) {
   if (!value.trim()) return null;
   return Number.parseInt(normalizeDigits(value), 10);
+}
+
+function parseNullableNumber(value: string) {
+  if (!value.trim()) return null;
+  return Number(parseFloat(normalizeDigits(value)));
 }
 
 function isValidWholeNumberInput(value: string) {
   const normalized = normalizeDigits(value).trim();
   if (normalized === "") return true;
   return /^\d+$/.test(normalized);
+}
+
+function isValidDecimalInput(value: string) {
+  const normalized = normalizeDigits(value).trim();
+  if (normalized === "") return true;
+  return /^\d+(?:\.\d+)?$/.test(normalized);
 }
 
 function PriceInputCell({
@@ -130,8 +182,8 @@ function PriceInputCell({
   onSubmitRow,
 }: PriceInputCellProps) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-8 text-xs font-medium uppercase tracking-wide text-slate-400">
+    <div className="flex items-center gap-1">
+      <span className="w-6 text-xs font-medium uppercase tracking-wide text-slate-400">
         {currency}
       </span>
       <Input
@@ -157,13 +209,13 @@ function PriceInputCell({
         disabled={!canEdit || saving}
         data-product-id={row.productId}
         data-field={field}
-        className="h-8 min-w-[8rem] text-right"
+        className="h-7 w-full text-right text-sm"
       />
       {canEdit && isActive ? (
         <Button
           type="button"
           variant="secondary"
-          className="h-8 px-2"
+          className="h-7 px-1"
           disabled={saving}
           onMouseDown={(event) => event.preventDefault()}
           onClick={async () => {
@@ -218,7 +270,9 @@ export function InventoryGrid({
     field: keyof DraftPrice,
     value: string,
   ) => {
-    const sanitized = sanitizeInteger(value);
+    const sanitized = ["uaeProfitMargin", "irProfitMargin"].includes(field)
+      ? sanitizeNumberAllowDecimal(value)
+      : sanitizeInteger(value);
     setDrafts((current) => ({
       ...current,
       [productId]: {
@@ -242,19 +296,46 @@ export function InventoryGrid({
         productId: row.productId,
         uaePriceAed: parseNullableInt(draft.uaePriceAed),
         irPriceIrr: parseNullableInt(draft.irPriceIrr),
+        shippingCost: parseNullableInt(draft.shippingCost),
+        lowestPrice: parseNullableInt(draft.lowestPrice),
+        highestPrice: parseNullableInt(draft.highestPrice),
+        uaeProfitMargin: parseNullableNumber(draft.uaeProfitMargin),
+        irProfitMargin: parseNullableNumber(draft.irProfitMargin),
+        lastSellingPrice: parseNullableInt(draft.lastSellingPrice),
+        priceRatio: parseNullableNumber(draft.priceRatio),
       };
     });
 
   const submitRows = async (targetRows: InventoryRow[]) => {
     const invalid = targetRows.find((row) => {
       const draft = getDraftValue(drafts, row.productId);
-      return [draft.uaePriceAed, draft.irPriceIrr].some(
-        (value) => !isValidWholeNumberInput(value),
-      );
+      return [
+        draft.uaePriceAed,
+        draft.irPriceIrr,
+        draft.shippingCost,
+        draft.lowestPrice,
+        draft.highestPrice,
+        draft.lastSellingPrice,
+        draft.priceRatio,
+      ].some((value) => !isValidWholeNumberInput(value));
     });
 
     if (invalid) {
-      toast.error("Only whole-number prices are allowed.");
+      toast.error(
+        "Only whole-number prices are allowed for price/shipping/competitor fields.",
+      );
+      return;
+    }
+
+    const invalidDecimal = targetRows.find((row) => {
+      const draft = getDraftValue(drafts, row.productId);
+      return [draft.uaeProfitMargin, draft.irProfitMargin].some(
+        (value) => !isValidDecimalInput(value),
+      );
+    });
+
+    if (invalidDecimal) {
+      toast.error("Profit margins must be numeric (decimals allowed).");
       return;
     }
 
@@ -298,13 +379,31 @@ export function InventoryGrid({
       </div>
 
       <div className="hidden overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:block">
-        <table className="min-w-full table-fixed border-collapse text-sm">
+        <table className="table-fixed border-collapse text-xs w-full">
+          <colgroup>
+            <col style={{ width: "3rem" }} />
+            <col style={{ width: "5rem" }} />
+            <col style={{ width: "26rem" }} />
+            <col style={{ width: "8rem" }} />
+            <col style={{ width: "6rem" }} />
+            <col style={{ width: "10rem" }} />
+            <col style={{ width: "7rem" }} />
+            <col style={{ width: "10rem" }} />
+            <col style={{ width: "7rem" }} />
+            <col style={{ width: "10rem" }} />
+            <col style={{ width: "7rem" }} />
+            <col style={{ width: "7rem" }} />
+            <col style={{ width: "10rem" }} />
+            <col style={{ width: "10rem" }} />
+            <col style={{ width: "10rem" }} />
+            <col style={{ width: "10rem" }} />
+          </colgroup>
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-950 dark:text-slate-400">
             <tr>
               {sortableColumns.map((column) => (
                 <th
                   key={column.label}
-                  className="border-b border-slate-200 px-3 py-3 font-medium dark:border-slate-800"
+                  className="border-b border-slate-200 px-2 py-2 font-medium dark:border-slate-800"
                 >
                   {column.key ? (
                     <button
@@ -339,22 +438,22 @@ export function InventoryGrid({
                 key={row.productId}
                 className="border-b border-slate-100 align-top last:border-b-0 dark:border-slate-800/70"
               >
-                <td className="px-3 py-3 text-slate-500">{index + 1}</td>
-                <td className="px-3 py-3 font-medium text-slate-700 dark:text-slate-200">
+                <td className="px-2 py-2 text-slate-500">{index + 1}</td>
+                <td className="px-2 py-2 font-medium text-slate-700 dark:text-slate-200">
                   {row.odooId}
                 </td>
-                <td className="px-3 py-3">
+                <td className="px-2 py-2">
                   <div className="font-medium text-slate-950 dark:text-slate-100">
-                    {row.name}
+                    <div className="max-w-104 truncate">{row.name}</div>
                   </div>
                 </td>
-                <td className="px-3 py-3 text-slate-600 dark:text-slate-300">
-                  {row.barcode ?? "—"}
+                <td className="px-2 py-2 text-slate-600 dark:text-slate-300">
+                  <div className="max-w-32 truncate">{row.barcode ?? "—"}</div>
                 </td>
-                <td className="px-3 py-3 tabular-nums text-slate-700 dark:text-slate-200">
+                <td className="px-2 py-2 tabular-nums text-slate-700 dark:text-slate-200">
                   {formatNumber(row.qtyAvailable)}
                 </td>
-                <td className="px-3 py-3">
+                <td className="px-2 py-2">
                   {canEdit ? (
                     <PriceInputCell
                       row={row}
@@ -386,11 +485,12 @@ export function InventoryGrid({
                     <span>{formatNumber(row.uaePriceAed) || "—"}</span>
                   )}
                 </td>
-                <td className="px-3 py-3 text-slate-600 dark:text-slate-300">
+                <td className="px-2 py-2 text-slate-600 dark:text-slate-300">
                   {formatDateTime(row.uaeUpdatedAt)}
                 </td>
-                <td className="px-3 py-3">
-                  {canEdit ? (
+
+                <td className="px-2 py-2">
+                  <div className="flex gap-2">
                     <PriceInputCell
                       row={row}
                       field="irPriceIrr"
@@ -417,12 +517,237 @@ export function InventoryGrid({
                       onChangeField={updateField}
                       onSubmitRow={submitSingleRow}
                     />
+                  </div>
+                </td>
+                <td className="px-2 py-2 text-slate-600 dark:text-slate-300">
+                  {formatDateTime(row.irUpdatedAt)}
+                </td>
+                <td className="px-2 py-2">
+                  {canEdit ? (
+                    <PriceInputCell
+                      row={row}
+                      field="shippingCost"
+                      currency="SHP"
+                      value={drafts[row.productId]?.shippingCost ?? ""}
+                      canEdit={canEdit}
+                      saving={saving}
+                      isActive={
+                        activeField?.productId === row.productId &&
+                        activeField.field === "shippingCost"
+                      }
+                      onFocusField={(productId, field) => {
+                        lastFocusedRef.current = { productId, field };
+                        setActiveField({ productId, field });
+                      }}
+                      onBlurField={(productId, field) => {
+                        setActiveField((current) =>
+                          current?.productId === productId &&
+                          current.field === field
+                            ? null
+                            : current,
+                        );
+                      }}
+                      onChangeField={updateField}
+                      onSubmitRow={submitSingleRow}
+                    />
                   ) : (
-                    <span>{formatNumber(row.irPriceIrr) || "—"}</span>
+                    <span>{formatNumber(row.shippingCost) || "—"}</span>
                   )}
                 </td>
-                <td className="px-3 py-3 text-slate-600 dark:text-slate-300">
-                  {formatDateTime(row.irUpdatedAt)}
+                <td className="px-2 py-2">
+                  {canEdit ? (
+                    <div className="flex items-center gap-2">
+                      <PriceInputCell
+                        row={row}
+                        field="uaeProfitMargin"
+                        currency="%"
+                        value={drafts[row.productId]?.uaeProfitMargin ?? ""}
+                        canEdit={canEdit}
+                        saving={saving}
+                        isActive={
+                          activeField?.productId === row.productId &&
+                          activeField.field === "uaeProfitMargin"
+                        }
+                        onFocusField={(productId, field) => {
+                          lastFocusedRef.current = { productId, field };
+                          setActiveField({ productId, field });
+                        }}
+                        onBlurField={(productId, field) => {
+                          setActiveField((current) =>
+                            current?.productId === productId &&
+                            current.field === field
+                              ? null
+                              : current,
+                          );
+                        }}
+                        onChangeField={updateField}
+                        onSubmitRow={submitSingleRow}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <span>{formatNumber(row.irPriceIrr) || "—"}</span>
+                      <span>{row.uaeProfitMargin ?? "—"}%</span>
+                      <span>{row.irProfitMargin ?? "—"}%</span>
+                    </div>
+                  )}
+                </td>
+                <td className="px-2 py-2">
+                  <PriceInputCell
+                    row={row}
+                    field="irProfitMargin"
+                    currency="%"
+                    value={drafts[row.productId]?.irProfitMargin ?? ""}
+                    canEdit={canEdit}
+                    saving={saving}
+                    isActive={
+                      activeField?.productId === row.productId &&
+                      activeField.field === "irProfitMargin"
+                    }
+                    onFocusField={(productId, field) => {
+                      lastFocusedRef.current = { productId, field };
+                      setActiveField({ productId, field });
+                    }}
+                    onBlurField={(productId, field) => {
+                      setActiveField((current) =>
+                        current?.productId === productId &&
+                        current.field === field
+                          ? null
+                          : current,
+                      );
+                    }}
+                    onChangeField={updateField}
+                    onSubmitRow={submitSingleRow}
+                  />
+                </td>
+
+                <td className="px-2 py-2">
+                  {canEdit ? (
+                    <PriceInputCell
+                      row={row}
+                      field="lowestPrice"
+                      currency="CMP"
+                      value={drafts[row.productId]?.lowestPrice ?? ""}
+                      canEdit={canEdit}
+                      saving={saving}
+                      isActive={
+                        activeField?.productId === row.productId &&
+                        activeField.field === "lowestPrice"
+                      }
+                      onFocusField={(productId, field) => {
+                        lastFocusedRef.current = { productId, field };
+                        setActiveField({ productId, field });
+                      }}
+                      onBlurField={(productId, field) => {
+                        setActiveField((current) =>
+                          current?.productId === productId &&
+                          current.field === field
+                            ? null
+                            : current,
+                        );
+                      }}
+                      onChangeField={updateField}
+                      onSubmitRow={submitSingleRow}
+                    />
+                  ) : (
+                    <span>{formatNumber(row.lowestPrice) || "—"}</span>
+                  )}
+                </td>
+                <td className="px-2 py-2">
+                  {canEdit ? (
+                    <PriceInputCell
+                      row={row}
+                      field="highestPrice"
+                      currency="CMP"
+                      value={drafts[row.productId]?.highestPrice ?? ""}
+                      canEdit={canEdit}
+                      saving={saving}
+                      isActive={
+                        activeField?.productId === row.productId &&
+                        activeField.field === "highestPrice"
+                      }
+                      onFocusField={(productId, field) => {
+                        lastFocusedRef.current = { productId, field };
+                        setActiveField({ productId, field });
+                      }}
+                      onBlurField={(productId, field) => {
+                        setActiveField((current) =>
+                          current?.productId === productId &&
+                          current.field === field
+                            ? null
+                            : current,
+                        );
+                      }}
+                      onChangeField={updateField}
+                      onSubmitRow={submitSingleRow}
+                    />
+                  ) : (
+                    <span>{formatNumber(row.highestPrice) || "—"}</span>
+                  )}
+                </td>
+                <td className="px-2 py-2">
+                  {canEdit ? (
+                    <PriceInputCell
+                      row={row}
+                      field="lastSellingPrice"
+                      currency="IRR"
+                      value={drafts[row.productId]?.lastSellingPrice ?? ""}
+                      canEdit={canEdit}
+                      saving={saving}
+                      isActive={
+                        activeField?.productId === row.productId &&
+                        activeField.field === "lastSellingPrice"
+                      }
+                      onFocusField={(productId, field) => {
+                        lastFocusedRef.current = { productId, field };
+                        setActiveField({ productId, field });
+                      }}
+                      onBlurField={(productId, field) => {
+                        setActiveField((current) =>
+                          current?.productId === productId &&
+                          current.field === field
+                            ? null
+                            : current,
+                        );
+                      }}
+                      onChangeField={updateField}
+                      onSubmitRow={submitSingleRow}
+                    />
+                  ) : (
+                    <span>{formatNumber(row.lastSellingPrice) || "—"}</span>
+                  )}
+                </td>
+                <td className="px-2 py-2">
+                  {canEdit ? (
+                    <PriceInputCell
+                      row={row}
+                      field="priceRatio"
+                      currency=""
+                      value={drafts[row.productId]?.priceRatio ?? ""}
+                      canEdit={canEdit}
+                      saving={saving}
+                      isActive={
+                        activeField?.productId === row.productId &&
+                        activeField.field === "priceRatio"
+                      }
+                      onFocusField={(productId, field) => {
+                        lastFocusedRef.current = { productId, field };
+                        setActiveField({ productId, field });
+                      }}
+                      onBlurField={(productId, field) => {
+                        setActiveField((current) =>
+                          current?.productId === productId &&
+                          current.field === field
+                            ? null
+                            : current,
+                        );
+                      }}
+                      onChangeField={updateField}
+                      onSubmitRow={submitSingleRow}
+                    />
+                  ) : (
+                    <span>{row.priceRatio ?? "—"}</span>
+                  )}
                 </td>
               </tr>
             ))}

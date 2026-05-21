@@ -2,7 +2,10 @@ import { createHash } from "crypto";
 import { Prisma, Role } from "@/generated/prisma/client";
 import { env } from "@/lib/config/env";
 import { OdooError } from "@/lib/odoo/client";
-import { fetchOdooProductsByIds, searchOdooProducts } from "@/lib/odoo/product-service";
+import {
+  fetchOdooProductsByIds,
+  searchOdooProducts,
+} from "@/lib/odoo/product-service";
 import { prisma } from "@/lib/prisma";
 import { tokenizeSearch } from "@/lib/search/tokens";
 import type { ProductRowDto } from "@/lib/products/dto";
@@ -14,7 +17,9 @@ function bigIntToNumber(value: bigint | null | undefined) {
   return value == null ? null : Number(value);
 }
 
-type CachedProductWithPrice = Prisma.CachedProductGetPayload<{ include: { price: true } }>;
+type CachedProductWithPrice = Prisma.CachedProductGetPayload<{
+  include: { price: true; competitorPrice: true };
+}>;
 
 function toRow(product: CachedProductWithPrice): ProductRowDto {
   return {
@@ -27,6 +32,26 @@ function toRow(product: CachedProductWithPrice): ProductRowDto {
     uaeUpdatedAt: product.price?.uaeUpdatedAt?.toISOString() ?? null,
     irPriceIrr: bigIntToNumber(product.price?.irPriceIrr),
     irUpdatedAt: product.price?.irUpdatedAt?.toISOString() ?? null,
+    shippingCost: product.price?.shippingCost ?? null,
+    uaeProfitMargin:
+      product.price?.uaeProfitMargin == null
+        ? null
+        : Number(product.price.uaeProfitMargin.toString()),
+    irProfitMargin:
+      product.price?.irProfitMargin == null
+        ? null
+        : Number(product.price.irProfitMargin.toString()),
+    lowestPrice:
+      product.competitorPrice && product.competitorPrice.lowestPrice != null
+        ? bigIntToNumber(product.competitorPrice.lowestPrice)
+        : null,
+    highestPrice:
+      product.competitorPrice && product.competitorPrice.highestPrice != null
+        ? bigIntToNumber(product.competitorPrice.highestPrice)
+        : null,
+    lastSellingPrice: product.lastSellingPrice ?? null,
+    priceRatio:
+      product.priceRatio == null ? null : Number(product.priceRatio.toString()),
   };
 }
 
@@ -43,11 +68,11 @@ function cacheWhere(tokens: string[]): Prisma.CachedProductWhereInput {
 
 async function cachedRows(tokens: string[], page: number, pageSize: number) {
   const where = cacheWhere(tokens);
-  const session = await getSession()
+  const session = await getSession();
   const [items, total] = await prisma.$transaction([
     prisma.cachedProduct.findMany({
       where,
-      include: { price: true },
+      include: { price: true, competitorPrice: true },
       orderBy: { name: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -62,25 +87,31 @@ async function cachedRows(tokens: string[], page: number, pageSize: number) {
     });
   }
 
-  items.forEach(
-    item => {
-      if (session?.role !== Role.ADMIN && item.price){
-        item.price.uaePriceAed = null
-        item.price.uaePriceAed = null
-      }
+  items.forEach((item) => {
+    if (session?.role !== Role.ADMIN && item.price) {
+      item.price.uaePriceAed = null;
+      item.price.uaePriceAed = null;
     }
-  )
-  
-  
+  });
+
   return { rows: items.map(toRow), total };
 }
 
-export async function searchProducts(query: string, page: number, pageSize: number,role: string="") {
+export async function searchProducts(
+  query: string,
+  page: number,
+  pageSize: number,
+  role: string = "",
+) {
   const tokens = tokenizeSearch(query);
-  if (tokens.length === 0) return { rows: [], total: 0, source: "cache" as const };
+  if (tokens.length === 0)
+    return { rows: [], total: 0, source: "cache" as const };
 
   try {
-    const odooProducts = await searchOdooProducts(tokens, Math.max(page * pageSize, pageSize));
+    const odooProducts = await searchOdooProducts(
+      tokens,
+      Math.max(page * pageSize, pageSize),
+    );
     const staleAt = new Date(Date.now() + TTL_MS);
 
     await prisma.$transaction(
@@ -92,7 +123,9 @@ export async function searchProducts(query: string, page: number, pageSize: numb
             name: product.name,
             barcode: product.barcode || null,
             qtyAvailable: new Prisma.Decimal(product.qty_available),
-            sourceHash: createHash("sha256").update(JSON.stringify(product)).digest("hex"),
+            sourceHash: createHash("sha256")
+              .update(JSON.stringify(product))
+              .digest("hex"),
             staleAt,
             price: { create: {} },
           },
@@ -100,7 +133,9 @@ export async function searchProducts(query: string, page: number, pageSize: numb
             name: product.name,
             barcode: product.barcode || null,
             qtyAvailable: new Prisma.Decimal(product.qty_available),
-            sourceHash: createHash("sha256").update(JSON.stringify(product)).digest("hex"),
+            sourceHash: createHash("sha256")
+              .update(JSON.stringify(product))
+              .digest("hex"),
             lastFetchedAt: new Date(),
             lastAccessedAt: new Date(),
             staleAt,
@@ -109,10 +144,17 @@ export async function searchProducts(query: string, page: number, pageSize: numb
       ),
     );
 
-    return { ...(await cachedRows(tokens, page, pageSize)), source: "odoo" as const };
+    return {
+      ...(await cachedRows(tokens, page, pageSize)),
+      source: "odoo" as const,
+    };
   } catch (error) {
     if (!(error instanceof OdooError)) throw error;
-    return { ...(await cachedRows(tokens, page, pageSize)), source: "cache" as const, warning: "Odoo unavailable; showing cached matches." };
+    return {
+      ...(await cachedRows(tokens, page, pageSize)),
+      source: "cache" as const,
+      warning: "Odoo unavailable; showing cached matches.",
+    };
   }
 }
 
@@ -126,7 +168,9 @@ export async function refreshStaleProducts(limit = 50) {
   if (stale.length === 0) return 0;
 
   try {
-    const fresh = await fetchOdooProductsByIds(stale.map((product) => product.odooId));
+    const fresh = await fetchOdooProductsByIds(
+      stale.map((product) => product.odooId),
+    );
     const staleAt = new Date(Date.now() + TTL_MS);
 
     await prisma.$transaction(
@@ -137,7 +181,9 @@ export async function refreshStaleProducts(limit = 50) {
             name: product.name,
             barcode: product.barcode || null,
             qtyAvailable: new Prisma.Decimal(product.qty_available),
-            sourceHash: createHash("sha256").update(JSON.stringify(product)).digest("hex"),
+            sourceHash: createHash("sha256")
+              .update(JSON.stringify(product))
+              .digest("hex"),
             lastFetchedAt: new Date(),
             lastAccessedAt: new Date(),
             staleAt,
