@@ -35,7 +35,7 @@ type SortField =
 
 type SortDirection = "asc" | "desc";
 
-const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 50;
 
 function sortRows(
   rows: InventoryRow[],

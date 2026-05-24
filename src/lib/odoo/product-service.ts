@@ -8,20 +8,13 @@ function productDomain(tokens: string[]) {
   }
 
   return tokens.reduce<unknown[]>((domain, token, index) => {
-    const tokenClause = [
-      "|",
-      ["name", "ilike", token],
-      ["barcode", "ilike", token],
-    ];
+    const tokenClause = ["|", ["name", "ilike", token], ["barcode", "ilike", token]];
     if (index === 0) return tokenClause;
     return ["&", ...domain, ...tokenClause];
   }, []);
 }
 
-export async function searchOdooProducts(
-  tokens: string[],
-  limit = env.PRODUCT_SEARCH_LIMIT,
-) {
+export async function searchOdooProducts(tokens: string[], limit = env.PRODUCT_SEARCH_LIMIT) {
   if (tokens.length === 0) return [];
 
   return odooClient.executeKw<OdooProduct[]>(

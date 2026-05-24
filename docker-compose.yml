@@ -21,6 +21,7 @@ services:
       - ODOO_USERNAME=${ODOO_USERNAME}
       - ODOO_API_KEY=${ODOO_API_KEY}
 
+
     env_file:
       - .env
     ports:
@@ -49,3 +50,8 @@ services:
 
 volumes:
   postgres_data:
+
+
+
+
+

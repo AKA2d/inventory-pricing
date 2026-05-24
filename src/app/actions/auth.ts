@@ -15,28 +15,16 @@ export type LoginState = {
   error?: string;
 };
 
-export async function loginAction(
-  _: LoginState,
-  formData: FormData,
-): Promise<LoginState> {
+export async function loginAction(_: LoginState, formData: FormData): Promise<LoginState> {
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Enter your username and password." };
 
-  const user = await prisma.user.findUnique({
-    where: { username: parsed.data.username },
-  });
-  if (
-    !user ||
-    !(await verifyPassword(parsed.data.password, user.passwordHash))
-  ) {
+  const user = await prisma.user.findUnique({ where: { username: parsed.data.username } });
+  if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
     return { error: "Invalid username or password." };
   }
 
-  await createSession({
-    userId: user.id,
-    username: user.username,
-    role: user.role,
-  });
+  await createSession({ userId: user.id, username: user.username, role: user.role });
   redirect("/");
 }
 

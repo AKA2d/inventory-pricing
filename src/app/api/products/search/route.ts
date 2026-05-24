@@ -8,15 +8,10 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
     if (!session) {
-      return Response.json(
-        { error: { code: "UNAUTHORIZED", message: "Login required." } },
-        { status: 401 },
-      );
+      return Response.json({ error: { code: "UNAUTHORIZED", message: "Login required." } }, { status: 401 });
     }
 
-    const parsed = productSearchSchema.parse(
-      Object.fromEntries(request.nextUrl.searchParams),
-    );
+    const parsed = productSearchSchema.parse(Object.fromEntries(request.nextUrl.searchParams));
     const result = await searchProducts(parsed.q, parsed.page, parsed.pageSize);
     return Response.json(result);
   } catch (error) {

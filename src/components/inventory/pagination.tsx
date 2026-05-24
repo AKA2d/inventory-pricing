@@ -11,15 +11,9 @@ type PaginationProps = {
   onPageSizeChange: (pageSize: number) => void;
 };
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 75, 100];
+const PAGE_SIZE_OPTIONS = [25, 50, 75, 100];
 
-export function Pagination({
-  page,
-  pageSize,
-  total,
-  onPageChange,
-  onPageSizeChange,
-}: PaginationProps) {
+export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChange }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
@@ -44,19 +38,11 @@ export function Pagination({
         </label>
       </div>
       <div className="flex items-center gap-2">
-        <Button
-          variant="secondary"
-          onClick={() => onPageChange(page - 1)}
-          disabled={page <= 1}
-        >
+        <Button variant="secondary" onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
           <ChevronLeft className="size-4" aria-hidden />
           Previous
         </Button>
-        <Button
-          variant="secondary"
-          onClick={() => onPageChange(page + 1)}
-          disabled={page >= totalPages}
-        >
+        <Button variant="secondary" onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}>
           Next
           <ChevronRight className="size-4" aria-hidden />
         </Button>
