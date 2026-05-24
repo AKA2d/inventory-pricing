@@ -10,12 +10,17 @@ export default async function Home() {
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">Operations</p>
+            <p className="text-sm uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">
+              Operations
+            </p>
             <p className="text-xl font-semibold">Regional Inventory Pricing</p>
           </div>
           <LogoutButton />
         </header>
-        <InventoryDashboard canEdit={user.role === "ADMIN"} username={user.username} />
+        <InventoryDashboard
+          canEdit={user.role === "ADMIN"}
+          username={user.username}
+        />
       </div>
     </main>
   );

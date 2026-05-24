@@ -6,7 +6,10 @@ export async function POST() {
   try {
     const session = await getSession();
     if (!session || session.role !== "ADMIN") {
-      return Response.json({ error: { code: "FORBIDDEN", message: "Admin role required." } }, { status: 403 });
+      return Response.json(
+        { error: { code: "FORBIDDEN", message: "Admin role required." } },
+        { status: 403 },
+      );
     }
 
     const refreshed = await refreshStaleProducts();

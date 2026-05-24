@@ -9,7 +9,10 @@ import { Input } from "@/components/ui/input";
 const initialState: LoginState = {};
 
 export default function LoginPage() {
-  const [state, formAction, pending] = useActionState(loginAction, initialState);
+  const [state, formAction, pending] = useActionState(
+    loginAction,
+    initialState,
+  );
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
@@ -20,7 +23,9 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="text-lg font-semibold">Inventory Pricing</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Sign in to continue</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Sign in to continue
+            </p>
           </div>
         </div>
 
@@ -31,9 +36,16 @@ export default function LoginPage() {
           </label>
           <label className="block space-y-1">
             <span className="text-sm font-medium">Password</span>
-            <Input name="password" type="password" autoComplete="current-password" required />
+            <Input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
           </label>
-          {state.error ? <p className="text-sm text-rose-600">{state.error}</p> : null}
+          {state.error ? (
+            <p className="text-sm text-rose-600">{state.error}</p>
+          ) : null}
           <Button className="w-full" type="submit" disabled={pending}>
             {pending ? "Signing in..." : "Sign in"}
           </Button>

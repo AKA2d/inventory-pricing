@@ -43,12 +43,18 @@ function decode(value?: string): SessionUser | null {
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
 
-  const parsed = sessionSchema.safeParse(JSON.parse(Buffer.from(payload, "base64url").toString("utf8")));
+  const parsed = sessionSchema.safeParse(
+    JSON.parse(Buffer.from(payload, "base64url").toString("utf8")),
+  );
   if (!parsed.success || parsed.data.expiresAt < Date.now()) return null;
   return parsed.data;
 }
 
-export async function createSession(input: { userId: string; username: string; role: Role }) {
+export async function createSession(input: {
+  userId: string;
+  username: string;
+  role: Role;
+}) {
   const cookieStore = await cookies();
   cookieStore.set(
     COOKIE_NAME,
