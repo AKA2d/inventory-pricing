@@ -43,4 +43,8 @@ next-env.d.ts
 .devserver.log
 
 /prisma/migrations
-/src/generated
+/src/generated/
+
+/.graphify-venv
+/graphify-out
+/scripts
