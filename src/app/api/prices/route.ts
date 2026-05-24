@@ -203,11 +203,39 @@ export async function PATCH(request: Request) {
           const effectiveUaePrice = data.uaePriceAed ?? current!.uaePriceAed;
           const effectiveIrPriceForRatio =
             data.irPriceIrr ?? current!.irPriceIrr ?? null;
-          if (effectiveUaePrice != null && effectiveIrPriceForRatio != null) {
+          let uaeSource: string | null = null;
+          let uaeValue: bigint | number | null = effectiveUaePrice ?? null;
+          if (uaeValue == null) {
+            // try global AED price from cache metadata
+            const meta = await tx.cacheMetadata.findUnique({
+              where: { key: "aed_price_of_the_day" },
+            });
+            if (meta?.value) {
+              try {
+                const parsed = JSON.parse(meta.value as unknown as string);
+                if (parsed) {
+                  if (typeof parsed.price === "number") {
+                    uaeValue = parsed.price;
+                    uaeSource = "global";
+                  } else if (
+                    typeof parsed.price === "string" &&
+                    !Number.isNaN(Number(parsed.price))
+                  ) {
+                    uaeValue = Number(parsed.price);
+                    uaeSource = "global";
+                  }
+                }
+              } catch (e) {
+                // ignore parse errors
+              }
+            }
+          }
+
+          if (uaeValue != null && effectiveIrPriceForRatio != null) {
             const uae = new Prisma.Decimal(
-              typeof effectiveUaePrice === "bigint"
-                ? effectiveUaePrice.toString()
-                : String(effectiveUaePrice),
+              typeof uaeValue === "bigint"
+                ? uaeValue.toString()
+                : String(uaeValue),
             );
             const irr = new Prisma.Decimal(
               typeof effectiveIrPriceForRatio === "bigint"
