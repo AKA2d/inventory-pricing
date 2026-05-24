@@ -21,7 +21,7 @@ type CachedProductWithPrice = Prisma.CachedProductGetPayload<{
   include: { price: true; competitorPrice: true };
 }>;
 
-function toRow(product: CachedProductWithPrice): ProductRowDto {
+export function toRow(product: CachedProductWithPrice): ProductRowDto {
   return {
     productId: product.id,
     odooId: product.odooId,
@@ -32,7 +32,7 @@ function toRow(product: CachedProductWithPrice): ProductRowDto {
     uaeUpdatedAt: product.price?.uaeUpdatedAt?.toISOString() ?? null,
     irPriceIrr: bigIntToNumber(product.price?.irPriceIrr),
     irUpdatedAt: product.price?.irUpdatedAt?.toISOString() ?? null,
-    shippingCost: product.price?.shippingCost ?? null,
+    shippingCost: bigIntToNumber(product.price?.shippingCost),
     uaeProfitMargin:
       product.price?.uaeProfitMargin == null
         ? null
@@ -49,7 +49,7 @@ function toRow(product: CachedProductWithPrice): ProductRowDto {
       product.competitorPrice && product.competitorPrice.highestPrice != null
         ? bigIntToNumber(product.competitorPrice.highestPrice)
         : null,
-    lastSellingPrice: product.lastSellingPrice ?? null,
+    lastSellingPrice: bigIntToNumber(product.lastSellingPrice),
     priceRatio:
       product.priceRatio == null ? null : Number(product.priceRatio.toString()),
   };

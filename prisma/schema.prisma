@@ -48,8 +48,8 @@ model CachedProduct {
   price        RegionalPrice?
   audits       PriceAuditLog[]
   competitorPrice CompetitorsPrice?
-  lastSellingPrice Int?           @db.Integer //irPriceIrr * irprofitMargin
-  priceRatio  Decimal?      @db.Decimal(5,2)  //priceirPriceIrr / aed price
+  lastSellingPrice BigInt?           @db.BigInt //irPriceIrr * irprofitMargin
+  priceRatio  Decimal?      @db.Decimal(18,6)  //priceirPriceIrr / aed price
 
 
   @@index([name])
@@ -76,7 +76,7 @@ model RegionalPrice {
   uaeUpdatedAt   DateTime?
   irPriceIrr     BigInt?
   irUpdatedAt    DateTime?
-  shippingCost Int?           @db.Integer
+  shippingCost BigInt?           @db.BigInt
   uaeProfitMargin Decimal?       @db.Decimal(5, 2)
   irProfitMargin Decimal?        @db.Decimal(5, 2)
   createdAt      DateTime      @default(now())

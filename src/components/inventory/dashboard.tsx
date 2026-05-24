@@ -207,9 +207,24 @@ export function InventoryDashboard({ canEdit, username }: DashboardProps) {
         body: JSON.stringify({ updates }),
       });
 
+      const payload = await response.json();
       if (!response.ok) {
-        const payload = (await response.json()) as ErrorPayload;
-        throw new Error(payload.error?.message ?? "Failed to save prices.");
+        throw new Error(
+          (payload as ErrorPayload).error?.message ?? "Failed to save prices.",
+        );
+      }
+
+      // server returns canonical rows for updated products
+      if (payload?.rows && Array.isArray(payload.rows)) {
+        setResult((current) => ({
+          ...current,
+          rows: current.rows.map((r) => {
+            const updated = (payload.rows as InventoryRow[]).find(
+              (x) => x.productId === r.productId,
+            );
+            return updated ?? r;
+          }),
+        }));
       }
 
       toast.success("Prices saved.");

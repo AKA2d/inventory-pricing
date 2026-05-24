@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { errorResponse } from "@/lib/errors";
 import { priceUpdateSchema } from "@/lib/products/dto";
 import { prisma } from "@/lib/prisma";
+import { toRow } from "@/lib/products/service";
 
 export async function PATCH(request: Request) {
   try {
@@ -25,14 +26,16 @@ export async function PATCH(request: Request) {
     const body = priceUpdateSchema.parse(await request.json());
     const now = new Date();
 
+    const updatedIds: string[] = [];
     await prisma.$transaction(async (tx) => {
       for (const update of body.updates) {
-        // ensure regional price row exists and load current values
+        // ensure regional price row exists
         await tx.regionalPrice.upsert({
           where: { productId: update.productId },
           create: { productId: update.productId },
           update: {},
         });
+
         const current = await tx.regionalPrice.findUnique({
           where: { productId: update.productId },
         });
@@ -80,6 +83,7 @@ export async function PATCH(request: Request) {
             ? null
             : new Prisma.Decimal(update.irProfitMargin);
 
+        // audit & update uae price
         if ("uaePriceAed" in update && nextUaePrice !== current!.uaePriceAed) {
           data.uaePriceAed = nextUaePrice;
           data.uaeUpdatedAt = now;
@@ -94,6 +98,7 @@ export async function PATCH(request: Request) {
           });
         }
 
+        // audit & update ir price
         if ("irPriceIrr" in update && nextIrPrice !== current!.irPriceIrr) {
           data.irPriceIrr = nextIrPrice;
           data.irUpdatedAt = now;
@@ -145,6 +150,11 @@ export async function PATCH(request: Request) {
           });
         }
 
+        // fetch current cached product to inspect existing lastSellingPrice/priceRatio
+        const currentCached = await tx.cachedProduct.findUnique({
+          where: { id: update.productId },
+        });
+
         // compute lastSellingPrice automatically if both IR price and IR profit margin are provided
         let computedLastSelling: number | null = null;
         const effectiveIrPrice = data.irPriceIrr ?? current!.irPriceIrr;
@@ -154,41 +164,71 @@ export async function PATCH(request: Request) {
           // effectiveIrPrice is bigint | null; convert to number and multiply by decimal
           const priceNumber = Number(effectiveIrPrice as bigint);
           const profitNumber = Number(effectiveIrProfit.toString());
-          computedLastSelling = Math.round(priceNumber * profitNumber);
+          computedLastSelling = Math.round(
+            (priceNumber * profitNumber) / 100 + priceNumber,
+          );
         }
 
         // lastSellingPrice precedence: explicit update.lastSellingPrice > computed > null
         const finalLastSelling = nextLastSellingPrice ?? computedLastSelling;
-        if (finalLastSelling != null) {
-          await tx.cachedProduct.update({
-            where: { id: update.productId },
-            data: { lastSellingPrice: finalLastSelling },
-          });
-        }
-        // compute priceRatio when IR price is submitted or available and UAE price is available
-        // priceRatio = irPriceIrr / uaePriceAed
-        let computedPriceRatio: Prisma.Decimal | null = null;
-        const effectiveUaePrice = data.uaePriceAed ?? current!.uaePriceAed;
-        const effectiveIrPriceForRatio =
-          data.irPriceIrr ?? current!.irPriceIrr ?? null;
-        if (effectiveUaePrice != null && effectiveIrPriceForRatio != null) {
-          const uae = new Prisma.Decimal(String(Number(effectiveUaePrice)));
-          const irr = new Prisma.Decimal(
-            String(Number(effectiveIrPriceForRatio)),
-          );
-          // avoid division by zero
-          if (!uae.eq(0)) {
-            computedPriceRatio = irr.div(uae);
+
+        // cachedProduct updates (we batch lastSellingPrice and priceRatio into a single update)
+        const cachedData: {
+          lastSellingPrice?: number | null;
+          priceRatio?: Prisma.Decimal | null;
+        } = {};
+
+        if (finalLastSelling != null)
+          cachedData.lastSellingPrice = finalLastSelling;
+
+        // priceRatio handling
+        const nextPriceRatioFromPayload =
+          update.priceRatio == null
+            ? null
+            : new Prisma.Decimal(update.priceRatio);
+
+        console.log(update);
+        if (update.priceRatio != null) {
+          // explicit payload controls ratio (allow clearing by sending null)
+          cachedData.priceRatio = nextPriceRatioFromPayload;
+          console.log("from payload");
+        } else if (
+          "irPriceIrr" in update &&
+          (currentCached?.priceRatio === null ||
+            currentCached?.priceRatio === undefined)
+        ) {
+          console.log("computing price ratio");
+          // only compute on first IR price submission when no ratio exists yet
+          let computedPriceRatio: Prisma.Decimal | null = null;
+          const effectiveUaePrice = data.uaePriceAed ?? current!.uaePriceAed;
+          const effectiveIrPriceForRatio =
+            data.irPriceIrr ?? current!.irPriceIrr ?? null;
+          if (effectiveUaePrice != null && effectiveIrPriceForRatio != null) {
+            const uae = new Prisma.Decimal(
+              typeof effectiveUaePrice === "bigint"
+                ? effectiveUaePrice.toString()
+                : String(effectiveUaePrice),
+            );
+            const irr = new Prisma.Decimal(
+              typeof effectiveIrPriceForRatio === "bigint"
+                ? effectiveIrPriceForRatio.toString()
+                : String(effectiveIrPriceForRatio),
+            );
+            if (!uae.eq(0)) computedPriceRatio = irr.div(uae);
           }
+
+          if (computedPriceRatio != null)
+            cachedData.priceRatio = computedPriceRatio;
         }
-        if (computedPriceRatio != null) {
+
+        if (Object.keys(cachedData).length > 0) {
           await tx.cachedProduct.update({
             where: { id: update.productId },
-            data: { priceRatio: computedPriceRatio },
+            data: cachedData,
           });
         }
+
         // update competitors price if provided
-        // competitors lowest/highest
         if (
           "lowestPrice" in update &&
           nextLowestPrice !== currentComp?.lowestPrice
@@ -209,10 +249,18 @@ export async function PATCH(request: Request) {
             update: compData,
           });
         }
+        updatedIds.push(update.productId);
       }
     });
 
-    return Response.json({ ok: true });
+    // load fresh rows for updated products and return them to client
+    const fresh = await prisma.cachedProduct.findMany({
+      where: { id: { in: Array.from(new Set(updatedIds)) } },
+      include: { price: true, competitorPrice: true },
+    });
+
+    const dtoRows = fresh.map((p) => toRow(p as any));
+    return Response.json({ ok: true, rows: dtoRows });
   } catch (error) {
     return errorResponse(error);
   }

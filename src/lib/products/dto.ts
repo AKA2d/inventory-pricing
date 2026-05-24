@@ -11,14 +11,51 @@ export const priceUpdateSchema = z.object({
     .array(
       z.object({
         productId: z.string().min(1),
-        uaePriceAed: z.number().int().nonnegative().nullable().optional(),
-        irPriceIrr: z.number().int().nonnegative().nullable().optional(),
-        shippingCost: z.number().int().nonnegative().nullable().optional(),
-        lowestPrice: z.number().int().nonnegative().nullable().optional(),
-        highestPrice: z.number().int().nonnegative().nullable().optional(),
+        uaePriceAed: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(999_999_999_999)
+          .nullable()
+          .optional(),
+        irPriceIrr: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(999_999_999_999)
+          .nullable()
+          .optional(),
+        shippingCost: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(999_999_999_999)
+          .nullable()
+          .optional(),
+        lowestPrice: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(999_999_999_999)
+          .nullable()
+          .optional(),
+        highestPrice: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(999_999_999_999)
+          .nullable()
+          .optional(),
         uaeProfitMargin: z.number().nonnegative().nullable().optional(),
         irProfitMargin: z.number().nonnegative().nullable().optional(),
-        lastSellingPrice: z.number().int().nonnegative().nullable().optional(),
+        lastSellingPrice: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(999_999_999_999)
+          .nullable()
+          .optional(),
+        priceRatio: z.number().nonnegative().nullable().optional(),
       }),
     )
     .min(1)
