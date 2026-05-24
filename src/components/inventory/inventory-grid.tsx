@@ -308,6 +308,7 @@ export function InventoryGrid({
 
   const submitRows = async (targetRows: InventoryRow[]) => {
     const invalid = targetRows.find((row) => {
+      console.log(row);
       const draft = getDraftValue(drafts, row.productId);
       return [
         draft.uaePriceAed,
@@ -315,8 +316,6 @@ export function InventoryGrid({
         draft.shippingCost,
         draft.lowestPrice,
         draft.highestPrice,
-        draft.lastSellingPrice,
-        draft.priceRatio,
       ].some((value) => !isValidWholeNumberInput(value));
     });
 
@@ -355,6 +354,397 @@ export function InventoryGrid({
   const submitSingleRow = async (productId: string) => {
     await submitRows(rowsForIds([productId]));
   };
+  // Column definitions (single source of truth for headers + cells)
+  const COLUMNS: Array<{
+    key: string;
+    label: string;
+    width?: string;
+    sortable?: SortField | null;
+    renderCell: (row: InventoryRow, rowIndex: number) => any;
+  }> = [
+    { key: "index", label: "#", width: "3rem", renderCell: (_, i) => i + 1 },
+    {
+      key: "odooId",
+      label: "Odoo ID",
+      width: "5rem",
+      sortable: "odooId",
+      renderCell: (row) => (
+        <span className="font-medium text-slate-700 dark:text-slate-200">
+          {row.odooId}
+        </span>
+      ),
+    },
+    {
+      key: "name",
+      label: "Product name",
+      width: "26rem",
+      renderCell: (row) => (
+        <div className="font-medium text-slate-950 dark:text-slate-100">
+          <div className="max-w-104 truncate">{row.name}</div>
+        </div>
+      ),
+    },
+    {
+      key: "barcode",
+      label: "Barcode",
+      width: "8rem",
+      renderCell: (row) => (
+        <div className="max-w-32 truncate text-slate-600 dark:text-slate-300">
+          {row.barcode ?? "—"}
+        </div>
+      ),
+    },
+    {
+      key: "qtyAvailable",
+      label: "Inventory",
+      width: "6rem",
+      sortable: "qtyAvailable",
+      renderCell: (row) => (
+        <div className="tabular-nums text-slate-700 dark:text-slate-200">
+          {formatNumber(row.qtyAvailable)}
+        </div>
+      ),
+    },
+    {
+      key: "uaePriceAed",
+      label: "UAE price",
+      width: "10rem",
+      sortable: "uaePriceAed",
+      renderCell: (row) =>
+        canEdit ? (
+          <PriceInputCell
+            row={row}
+            field="uaePriceAed"
+            currency="AED"
+            value={drafts[row.productId]?.uaePriceAed ?? ""}
+            canEdit={canEdit}
+            saving={saving}
+            isActive={
+              activeField?.productId === row.productId &&
+              activeField.field === "uaePriceAed"
+            }
+            onFocusField={(productId, field) => {
+              lastFocusedRef.current = { productId, field };
+              setActiveField({ productId, field });
+            }}
+            onBlurField={(productId, field) => {
+              setActiveField((current) =>
+                current?.productId === productId && current.field === field
+                  ? null
+                  : current,
+              );
+            }}
+            onChangeField={updateField}
+            onSubmitRow={submitSingleRow}
+          />
+        ) : (
+          <span>{formatNumber(row.uaePriceAed) || "—"}</span>
+        ),
+    },
+    {
+      key: "uaeUpdatedAt",
+      label: "UAE updated",
+      width: "7rem",
+      renderCell: (row) => (
+        <div className="text-slate-600 dark:text-slate-300">
+          {formatDateTime(row.uaeUpdatedAt)}
+        </div>
+      ),
+    },
+    {
+      key: "irPriceIrr",
+      label: "IR price",
+      width: "10rem",
+      sortable: "irPriceIrr",
+      renderCell: (row) => (
+        <div className="flex gap-2">
+          <PriceInputCell
+            row={row}
+            field="irPriceIrr"
+            currency="IRR"
+            value={drafts[row.productId]?.irPriceIrr ?? ""}
+            canEdit={canEdit}
+            saving={saving}
+            isActive={
+              activeField?.productId === row.productId &&
+              activeField.field === "irPriceIrr"
+            }
+            onFocusField={(productId, field) => {
+              lastFocusedRef.current = { productId, field };
+              setActiveField({ productId, field });
+            }}
+            onBlurField={(productId, field) => {
+              setActiveField((current) =>
+                current?.productId === productId && current.field === field
+                  ? null
+                  : current,
+              );
+            }}
+            onChangeField={updateField}
+            onSubmitRow={submitSingleRow}
+          />
+        </div>
+      ),
+    },
+    {
+      key: "irUpdatedAt",
+      label: "IR updated",
+      width: "7rem",
+      renderCell: (row) => (
+        <div className="text-slate-600 dark:text-slate-300">
+          {formatDateTime(row.irUpdatedAt)}
+        </div>
+      ),
+    },
+    {
+      key: "shippingCost",
+      label: "Shipping",
+      width: "10rem",
+      renderCell: (row) =>
+        canEdit ? (
+          <PriceInputCell
+            row={row}
+            field="shippingCost"
+            currency="SHP"
+            value={drafts[row.productId]?.shippingCost ?? ""}
+            canEdit={canEdit}
+            saving={saving}
+            isActive={
+              activeField?.productId === row.productId &&
+              activeField.field === "shippingCost"
+            }
+            onFocusField={(productId, field) => {
+              lastFocusedRef.current = { productId, field };
+              setActiveField({ productId, field });
+            }}
+            onBlurField={(productId, field) => {
+              setActiveField((current) =>
+                current?.productId === productId && current.field === field
+                  ? null
+                  : current,
+              );
+            }}
+            onChangeField={updateField}
+            onSubmitRow={submitSingleRow}
+          />
+        ) : (
+          <span>{formatNumber(row.shippingCost) || "—"}</span>
+        ),
+    },
+    {
+      key: "uaeProfitMargin",
+      label: "UAE margin",
+      width: "7rem",
+      renderCell: (row) =>
+        canEdit ? (
+          <div className="flex items-center gap-2">
+            <PriceInputCell
+              row={row}
+              field="uaeProfitMargin"
+              currency="%"
+              value={drafts[row.productId]?.uaeProfitMargin ?? ""}
+              canEdit={canEdit}
+              saving={saving}
+              isActive={
+                activeField?.productId === row.productId &&
+                activeField.field === "uaeProfitMargin"
+              }
+              onFocusField={(productId, field) => {
+                lastFocusedRef.current = { productId, field };
+                setActiveField({ productId, field });
+              }}
+              onBlurField={(productId, field) => {
+                setActiveField((current) =>
+                  current?.productId === productId && current.field === field
+                    ? null
+                    : current,
+                );
+              }}
+              onChangeField={updateField}
+              onSubmitRow={submitSingleRow}
+            />
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <span>{formatNumber(row.irPriceIrr) || "—"}</span>
+            <span>{row.uaeProfitMargin ?? "—"}%</span>
+            <span>{row.irProfitMargin ?? "—"}%</span>
+          </div>
+        ),
+    },
+    {
+      key: "irProfitMargin",
+      label: "IR margin",
+      width: "7rem",
+      renderCell: (row) => (
+        <PriceInputCell
+          row={row}
+          field="irProfitMargin"
+          currency="%"
+          value={drafts[row.productId]?.irProfitMargin ?? ""}
+          canEdit={canEdit}
+          saving={saving}
+          isActive={
+            activeField?.productId === row.productId &&
+            activeField.field === "irProfitMargin"
+          }
+          onFocusField={(productId, field) => {
+            lastFocusedRef.current = { productId, field };
+            setActiveField({ productId, field });
+          }}
+          onBlurField={(productId, field) => {
+            setActiveField((current) =>
+              current?.productId === productId && current.field === field
+                ? null
+                : current,
+            );
+          }}
+          onChangeField={updateField}
+          onSubmitRow={submitSingleRow}
+        />
+      ),
+    },
+    {
+      key: "lowestPrice",
+      label: "Comp lowest",
+      width: "10rem",
+      renderCell: (row) =>
+        canEdit ? (
+          <PriceInputCell
+            row={row}
+            field="lowestPrice"
+            currency="CMP"
+            value={drafts[row.productId]?.lowestPrice ?? ""}
+            canEdit={canEdit}
+            saving={saving}
+            isActive={
+              activeField?.productId === row.productId &&
+              activeField.field === "lowestPrice"
+            }
+            onFocusField={(productId, field) => {
+              lastFocusedRef.current = { productId, field };
+              setActiveField({ productId, field });
+            }}
+            onBlurField={(productId, field) => {
+              setActiveField((current) =>
+                current?.productId === productId && current.field === field
+                  ? null
+                  : current,
+              );
+            }}
+            onChangeField={updateField}
+            onSubmitRow={submitSingleRow}
+          />
+        ) : (
+          <span>{formatNumber(row.lowestPrice) || "—"}</span>
+        ),
+    },
+    {
+      key: "highestPrice",
+      label: "Comp highest",
+      width: "10rem",
+      renderCell: (row) =>
+        canEdit ? (
+          <PriceInputCell
+            row={row}
+            field="highestPrice"
+            currency="CMP"
+            value={drafts[row.productId]?.highestPrice ?? ""}
+            canEdit={canEdit}
+            saving={saving}
+            isActive={
+              activeField?.productId === row.productId &&
+              activeField.field === "highestPrice"
+            }
+            onFocusField={(productId, field) => {
+              lastFocusedRef.current = { productId, field };
+              setActiveField({ productId, field });
+            }}
+            onBlurField={(productId, field) => {
+              setActiveField((current) =>
+                current?.productId === productId && current.field === field
+                  ? null
+                  : current,
+              );
+            }}
+            onChangeField={updateField}
+            onSubmitRow={submitSingleRow}
+          />
+        ) : (
+          <span>{formatNumber(row.highestPrice) || "—"}</span>
+        ),
+    },
+    {
+      key: "lastSellingPrice",
+      label: "Last sell",
+      width: "10rem",
+      renderCell: (row) =>
+        canEdit ? (
+          <PriceInputCell
+            row={row}
+            field="lastSellingPrice"
+            currency="IRR"
+            value={drafts[row.productId]?.lastSellingPrice ?? ""}
+            canEdit={canEdit}
+            saving={saving}
+            isActive={
+              activeField?.productId === row.productId &&
+              activeField.field === "lastSellingPrice"
+            }
+            onFocusField={(productId, field) => {
+              lastFocusedRef.current = { productId, field };
+              setActiveField({ productId, field });
+            }}
+            onBlurField={(productId, field) => {
+              setActiveField((current) =>
+                current?.productId === productId && current.field === field
+                  ? null
+                  : current,
+              );
+            }}
+            onChangeField={updateField}
+            onSubmitRow={submitSingleRow}
+          />
+        ) : (
+          <span>{formatNumber(row.lastSellingPrice) || "—"}</span>
+        ),
+    },
+    {
+      key: "priceRatio",
+      label: "Price ratio",
+      width: "10rem",
+      renderCell: (row) =>
+        canEdit ? (
+          <PriceInputCell
+            row={row}
+            field="priceRatio"
+            currency=""
+            value={drafts[row.productId]?.priceRatio ?? ""}
+            canEdit={canEdit}
+            saving={saving}
+            isActive={
+              activeField?.productId === row.productId &&
+              activeField.field === "priceRatio"
+            }
+            onFocusField={(productId, field) => {
+              lastFocusedRef.current = { productId, field };
+              setActiveField({ productId, field });
+            }}
+            onBlurField={(productId, field) => {
+              setActiveField((current) =>
+                current?.productId === productId && current.field === field
+                  ? null
+                  : current,
+              );
+            }}
+            onChangeField={updateField}
+            onSubmitRow={submitSingleRow}
+          />
+        ) : (
+          <span>{row.priceRatio ?? "—"}</span>
+        ),
+    },
+  ];
 
   return (
     <section className="space-y-4">
@@ -381,38 +771,25 @@ export function InventoryGrid({
       <div className="hidden overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:block">
         <table className="table-fixed border-collapse text-xs w-full">
           <colgroup>
-            <col style={{ width: "3rem" }} />
-            <col style={{ width: "5rem" }} />
-            <col style={{ width: "26rem" }} />
-            <col style={{ width: "8rem" }} />
-            <col style={{ width: "6rem" }} />
-            <col style={{ width: "10rem" }} />
-            <col style={{ width: "7rem" }} />
-            <col style={{ width: "10rem" }} />
-            <col style={{ width: "7rem" }} />
-            <col style={{ width: "10rem" }} />
-            <col style={{ width: "7rem" }} />
-            <col style={{ width: "7rem" }} />
-            <col style={{ width: "10rem" }} />
-            <col style={{ width: "10rem" }} />
-            <col style={{ width: "10rem" }} />
-            <col style={{ width: "10rem" }} />
+            {COLUMNS.map((c) => (
+              <col key={c.key} style={{ width: c.width ?? "auto" }} />
+            ))}
           </colgroup>
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-950 dark:text-slate-400">
             <tr>
-              {sortableColumns.map((column) => (
+              {COLUMNS.map((col) => (
                 <th
-                  key={column.label}
+                  key={col.key}
                   className="border-b border-slate-200 px-2 py-2 font-medium dark:border-slate-800"
                 >
-                  {column.key ? (
+                  {col.sortable ? (
                     <button
                       type="button"
-                      onClick={() => onSortChange(column.key as SortField)}
+                      onClick={() => onSortChange(col.sortable as SortField)}
                       className="flex items-center gap-2 text-left transition hover:text-slate-900 dark:hover:text-slate-100"
                     >
-                      <span>{column.label}</span>
-                      {sortField === column.key ? (
+                      <span>{col.label}</span>
+                      {sortField === col.sortable ? (
                         sortDirection === "asc" ? (
                           <ChevronUp className="size-4" aria-hidden />
                         ) : (
@@ -426,329 +803,23 @@ export function InventoryGrid({
                       )}
                     </button>
                   ) : (
-                    column.label
+                    col.label
                   )}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
+            {rows.map((row, rowIndex) => (
               <tr
                 key={row.productId}
                 className="border-b border-slate-100 align-top last:border-b-0 dark:border-slate-800/70"
               >
-                <td className="px-2 py-2 text-slate-500">{index + 1}</td>
-                <td className="px-2 py-2 font-medium text-slate-700 dark:text-slate-200">
-                  {row.odooId}
-                </td>
-                <td className="px-2 py-2">
-                  <div className="font-medium text-slate-950 dark:text-slate-100">
-                    <div className="max-w-104 truncate">{row.name}</div>
-                  </div>
-                </td>
-                <td className="px-2 py-2 text-slate-600 dark:text-slate-300">
-                  <div className="max-w-32 truncate">{row.barcode ?? "—"}</div>
-                </td>
-                <td className="px-2 py-2 tabular-nums text-slate-700 dark:text-slate-200">
-                  {formatNumber(row.qtyAvailable)}
-                </td>
-                <td className="px-2 py-2">
-                  {canEdit ? (
-                    <PriceInputCell
-                      row={row}
-                      field="uaePriceAed"
-                      currency="AED"
-                      value={drafts[row.productId]?.uaePriceAed ?? ""}
-                      canEdit={canEdit}
-                      saving={saving}
-                      isActive={
-                        activeField?.productId === row.productId &&
-                        activeField.field === "uaePriceAed"
-                      }
-                      onFocusField={(productId, field) => {
-                        lastFocusedRef.current = { productId, field };
-                        setActiveField({ productId, field });
-                      }}
-                      onBlurField={(productId, field) => {
-                        setActiveField((current) =>
-                          current?.productId === productId &&
-                          current.field === field
-                            ? null
-                            : current,
-                        );
-                      }}
-                      onChangeField={updateField}
-                      onSubmitRow={submitSingleRow}
-                    />
-                  ) : (
-                    <span>{formatNumber(row.uaePriceAed) || "—"}</span>
-                  )}
-                </td>
-                <td className="px-2 py-2 text-slate-600 dark:text-slate-300">
-                  {formatDateTime(row.uaeUpdatedAt)}
-                </td>
-
-                <td className="px-2 py-2">
-                  <div className="flex gap-2">
-                    <PriceInputCell
-                      row={row}
-                      field="irPriceIrr"
-                      currency="IRR"
-                      value={drafts[row.productId]?.irPriceIrr ?? ""}
-                      canEdit={canEdit}
-                      saving={saving}
-                      isActive={
-                        activeField?.productId === row.productId &&
-                        activeField.field === "irPriceIrr"
-                      }
-                      onFocusField={(productId, field) => {
-                        lastFocusedRef.current = { productId, field };
-                        setActiveField({ productId, field });
-                      }}
-                      onBlurField={(productId, field) => {
-                        setActiveField((current) =>
-                          current?.productId === productId &&
-                          current.field === field
-                            ? null
-                            : current,
-                        );
-                      }}
-                      onChangeField={updateField}
-                      onSubmitRow={submitSingleRow}
-                    />
-                  </div>
-                </td>
-                <td className="px-2 py-2 text-slate-600 dark:text-slate-300">
-                  {formatDateTime(row.irUpdatedAt)}
-                </td>
-                <td className="px-2 py-2">
-                  {canEdit ? (
-                    <PriceInputCell
-                      row={row}
-                      field="shippingCost"
-                      currency="SHP"
-                      value={drafts[row.productId]?.shippingCost ?? ""}
-                      canEdit={canEdit}
-                      saving={saving}
-                      isActive={
-                        activeField?.productId === row.productId &&
-                        activeField.field === "shippingCost"
-                      }
-                      onFocusField={(productId, field) => {
-                        lastFocusedRef.current = { productId, field };
-                        setActiveField({ productId, field });
-                      }}
-                      onBlurField={(productId, field) => {
-                        setActiveField((current) =>
-                          current?.productId === productId &&
-                          current.field === field
-                            ? null
-                            : current,
-                        );
-                      }}
-                      onChangeField={updateField}
-                      onSubmitRow={submitSingleRow}
-                    />
-                  ) : (
-                    <span>{formatNumber(row.shippingCost) || "—"}</span>
-                  )}
-                </td>
-                <td className="px-2 py-2">
-                  {canEdit ? (
-                    <div className="flex items-center gap-2">
-                      <PriceInputCell
-                        row={row}
-                        field="uaeProfitMargin"
-                        currency="%"
-                        value={drafts[row.productId]?.uaeProfitMargin ?? ""}
-                        canEdit={canEdit}
-                        saving={saving}
-                        isActive={
-                          activeField?.productId === row.productId &&
-                          activeField.field === "uaeProfitMargin"
-                        }
-                        onFocusField={(productId, field) => {
-                          lastFocusedRef.current = { productId, field };
-                          setActiveField({ productId, field });
-                        }}
-                        onBlurField={(productId, field) => {
-                          setActiveField((current) =>
-                            current?.productId === productId &&
-                            current.field === field
-                              ? null
-                              : current,
-                          );
-                        }}
-                        onChangeField={updateField}
-                        onSubmitRow={submitSingleRow}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <span>{formatNumber(row.irPriceIrr) || "—"}</span>
-                      <span>{row.uaeProfitMargin ?? "—"}%</span>
-                      <span>{row.irProfitMargin ?? "—"}%</span>
-                    </div>
-                  )}
-                </td>
-                <td className="px-2 py-2">
-                  <PriceInputCell
-                    row={row}
-                    field="irProfitMargin"
-                    currency="%"
-                    value={drafts[row.productId]?.irProfitMargin ?? ""}
-                    canEdit={canEdit}
-                    saving={saving}
-                    isActive={
-                      activeField?.productId === row.productId &&
-                      activeField.field === "irProfitMargin"
-                    }
-                    onFocusField={(productId, field) => {
-                      lastFocusedRef.current = { productId, field };
-                      setActiveField({ productId, field });
-                    }}
-                    onBlurField={(productId, field) => {
-                      setActiveField((current) =>
-                        current?.productId === productId &&
-                        current.field === field
-                          ? null
-                          : current,
-                      );
-                    }}
-                    onChangeField={updateField}
-                    onSubmitRow={submitSingleRow}
-                  />
-                </td>
-
-                <td className="px-2 py-2">
-                  {canEdit ? (
-                    <PriceInputCell
-                      row={row}
-                      field="lowestPrice"
-                      currency="CMP"
-                      value={drafts[row.productId]?.lowestPrice ?? ""}
-                      canEdit={canEdit}
-                      saving={saving}
-                      isActive={
-                        activeField?.productId === row.productId &&
-                        activeField.field === "lowestPrice"
-                      }
-                      onFocusField={(productId, field) => {
-                        lastFocusedRef.current = { productId, field };
-                        setActiveField({ productId, field });
-                      }}
-                      onBlurField={(productId, field) => {
-                        setActiveField((current) =>
-                          current?.productId === productId &&
-                          current.field === field
-                            ? null
-                            : current,
-                        );
-                      }}
-                      onChangeField={updateField}
-                      onSubmitRow={submitSingleRow}
-                    />
-                  ) : (
-                    <span>{formatNumber(row.lowestPrice) || "—"}</span>
-                  )}
-                </td>
-                <td className="px-2 py-2">
-                  {canEdit ? (
-                    <PriceInputCell
-                      row={row}
-                      field="highestPrice"
-                      currency="CMP"
-                      value={drafts[row.productId]?.highestPrice ?? ""}
-                      canEdit={canEdit}
-                      saving={saving}
-                      isActive={
-                        activeField?.productId === row.productId &&
-                        activeField.field === "highestPrice"
-                      }
-                      onFocusField={(productId, field) => {
-                        lastFocusedRef.current = { productId, field };
-                        setActiveField({ productId, field });
-                      }}
-                      onBlurField={(productId, field) => {
-                        setActiveField((current) =>
-                          current?.productId === productId &&
-                          current.field === field
-                            ? null
-                            : current,
-                        );
-                      }}
-                      onChangeField={updateField}
-                      onSubmitRow={submitSingleRow}
-                    />
-                  ) : (
-                    <span>{formatNumber(row.highestPrice) || "—"}</span>
-                  )}
-                </td>
-                <td className="px-2 py-2">
-                  {canEdit ? (
-                    <PriceInputCell
-                      row={row}
-                      field="lastSellingPrice"
-                      currency="IRR"
-                      value={drafts[row.productId]?.lastSellingPrice ?? ""}
-                      canEdit={canEdit}
-                      saving={saving}
-                      isActive={
-                        activeField?.productId === row.productId &&
-                        activeField.field === "lastSellingPrice"
-                      }
-                      onFocusField={(productId, field) => {
-                        lastFocusedRef.current = { productId, field };
-                        setActiveField({ productId, field });
-                      }}
-                      onBlurField={(productId, field) => {
-                        setActiveField((current) =>
-                          current?.productId === productId &&
-                          current.field === field
-                            ? null
-                            : current,
-                        );
-                      }}
-                      onChangeField={updateField}
-                      onSubmitRow={submitSingleRow}
-                    />
-                  ) : (
-                    <span>{formatNumber(row.lastSellingPrice) || "—"}</span>
-                  )}
-                </td>
-                <td className="px-2 py-2">
-                  {canEdit ? (
-                    <PriceInputCell
-                      row={row}
-                      field="priceRatio"
-                      currency=""
-                      value={drafts[row.productId]?.priceRatio ?? ""}
-                      canEdit={canEdit}
-                      saving={saving}
-                      isActive={
-                        activeField?.productId === row.productId &&
-                        activeField.field === "priceRatio"
-                      }
-                      onFocusField={(productId, field) => {
-                        lastFocusedRef.current = { productId, field };
-                        setActiveField({ productId, field });
-                      }}
-                      onBlurField={(productId, field) => {
-                        setActiveField((current) =>
-                          current?.productId === productId &&
-                          current.field === field
-                            ? null
-                            : current,
-                        );
-                      }}
-                      onChangeField={updateField}
-                      onSubmitRow={submitSingleRow}
-                    />
-                  ) : (
-                    <span>{row.priceRatio ?? "—"}</span>
-                  )}
-                </td>
+                {COLUMNS.map((col) => (
+                  <td key={col.key} className="px-2 py-2">
+                    {col.renderCell(row, rowIndex)}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
