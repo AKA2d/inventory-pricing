@@ -62,6 +62,8 @@ export const priceUpdateSchema = z.object({
     .max(100),
 });
 
+export type PriceUpdateInput = z.infer<typeof priceUpdateSchema>["updates"][number];
+
 export type ProductRowDto = {
   productId: string;
   odooId: number;

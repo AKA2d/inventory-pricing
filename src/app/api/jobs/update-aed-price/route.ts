@@ -44,7 +44,7 @@ export async function GET() {
     try {
       const parsed = JSON.parse(record.value as unknown as string);
       return Response.json({ ok: true, value: parsed });
-    } catch (err) {
+    } catch {
       return Response.json({ ok: true, value: null });
     }
   } catch (error) {

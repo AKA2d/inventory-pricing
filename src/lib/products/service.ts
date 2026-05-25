@@ -90,7 +90,10 @@ async function cachedRows(tokens: string[], page: number, pageSize: number) {
   items.forEach((item) => {
     if (session?.role !== Role.ADMIN && item.price) {
       item.price.uaePriceAed = null;
-      item.price.uaePriceAed = null;
+      item.price.uaeUpdatedAt = null;
+      item.price.shippingCost = null;
+      item.price.uaeProfitMargin = null;
+      item.price.irProfitMargin = null;
     }
   });
 
@@ -101,7 +104,6 @@ export async function searchProducts(
   query: string,
   page: number,
   pageSize: number,
-  role: string = "",
 ) {
   const tokens = tokenizeSearch(query);
   if (tokens.length === 0)

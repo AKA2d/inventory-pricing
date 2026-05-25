@@ -6,11 +6,17 @@ import { toast } from "sonner";
 import { InventoryGrid } from "@/components/inventory/inventory-grid";
 import { Pagination } from "@/components/inventory/pagination";
 import { SearchBar } from "@/components/inventory/search-bar";
+import { sortRows } from "@/components/inventory/sorting";
 import type {
   InventoryRow,
   SearchResponse,
 } from "@/components/inventory/types";
 import { Button } from "@/components/ui/button";
+import type {
+  PriceUpdate,
+  SortDirection,
+  SortField,
+} from "@/components/inventory/grid-types";
 
 type DashboardProps = {
   canEdit: boolean;
@@ -23,56 +29,7 @@ type ErrorPayload = {
   };
 };
 
-type SortField =
-  | "odooId"
-  | "name"
-  | "barcode"
-  | "qtyAvailable"
-  | "uaePriceAed"
-  | "uaeUpdatedAt"
-  | "irPriceIrr"
-  | "irUpdatedAt";
-
-type SortDirection = "asc" | "desc";
-
 const DEFAULT_PAGE_SIZE = 50;
-
-function sortRows(
-  rows: InventoryRow[],
-  field: SortField,
-  direction: SortDirection,
-) {
-  const sorted = [...rows].sort((left, right) => {
-    const leftValue = left[field];
-    const rightValue = right[field];
-
-    if (field === "qtyAvailable") {
-      return Number(left.qtyAvailable) - Number(right.qtyAvailable);
-    }
-
-    if (
-      field === "odooId" ||
-      field === "uaePriceAed" ||
-      field === "irPriceIrr"
-    ) {
-      return Number(leftValue ?? -1) - Number(rightValue ?? -1);
-    }
-
-    if (field === "uaeUpdatedAt" || field === "irUpdatedAt") {
-      return (
-        new Date(leftValue ?? 0).getTime() - new Date(rightValue ?? 0).getTime()
-      );
-    }
-
-    return String(leftValue ?? "").localeCompare(
-      String(rightValue ?? ""),
-      undefined,
-      { sensitivity: "base" },
-    );
-  });
-
-  return direction === "asc" ? sorted : sorted.reverse();
-}
 
 export function InventoryDashboard({ canEdit, username }: DashboardProps) {
   const [searchText, setSearchText] = useState("");
@@ -141,8 +98,8 @@ export function InventoryDashboard({ canEdit, username }: DashboardProps) {
         if (!mounted) return;
         const value = payload?.value?.price;
         setCurrentAedPrice(typeof value === "number" ? value : null);
-      } catch (err) {
-        // ignore
+      } catch {
+        // The header can render without the cached AED price.
       }
     };
     load();
@@ -174,13 +131,7 @@ export function InventoryDashboard({ canEdit, username }: DashboardProps) {
     setSortDirection("asc");
   };
 
-  const handleSave = async (
-    updates: Array<{
-      productId: string;
-      uaePriceAed: number | null;
-      irPriceIrr: number | null;
-    }>,
-  ) => {
+  const handleSave = async (updates: PriceUpdate[]) => {
     setIsSaving(true);
 
     const previous = result;
@@ -192,8 +143,8 @@ export function InventoryDashboard({ canEdit, username }: DashboardProps) {
         const now = new Date().toISOString();
         return {
           ...row,
-          uaePriceAed: update.uaePriceAed,
-          irPriceIrr: update.irPriceIrr,
+          uaePriceAed: update.uaePriceAed ?? row.uaePriceAed,
+          irPriceIrr: update.irPriceIrr ?? row.irPriceIrr,
           uaeUpdatedAt: now,
           irUpdatedAt: now,
         };
@@ -264,7 +215,22 @@ export function InventoryDashboard({ canEdit, username }: DashboardProps) {
   const gridStateKey = `${submittedQuery}:${page}:${pageSize}:${sortedRows
     .map(
       (row) =>
-        `${row.productId}:${row.uaePriceAed ?? "null"}:${row.irPriceIrr ?? "null"}:${row.uaeUpdatedAt ?? "null"}:${row.irUpdatedAt ?? "null"}`,
+        [
+          row.productId,
+          row.uaePriceAed,
+          row.irPriceIrr,
+          row.shippingCost,
+          row.lowestPrice,
+          row.highestPrice,
+          row.uaeProfitMargin,
+          row.irProfitMargin,
+          row.lastSellingPrice,
+          row.priceRatio,
+          row.uaeUpdatedAt,
+          row.irUpdatedAt,
+        ]
+          .map((value) => value ?? "null")
+          .join(":"),
     )
     .join("|")}`;
 
@@ -383,49 +349,39 @@ export function InventoryDashboard({ canEdit, username }: DashboardProps) {
         onChange={setSearchText}
         onSearch={handleSearch}
       />
-      {true ? (
-        <>
-          <section className="flex flex-wrap items-center gap-3 text-sm">
-            <div className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-slate-50 dark:bg-slate-50 dark:text-slate-950">
-              <DatabaseZap className="size-4" aria-hidden />
-              Source:{" "}
-              {result.source === "odoo" ? "Odoo + cache" : "Cache fallback"}
-            </div>
-            {result.warning ? (
-              <div className="inline-flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-                <AlertTriangle className="size-4" aria-hidden />
-                {result.warning}
-              </div>
-            ) : null}
-          </section>
+      <section className="flex flex-wrap items-center gap-3 text-sm">
+        <div className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-slate-50 dark:bg-slate-50 dark:text-slate-950">
+          <DatabaseZap className="size-4" aria-hidden />
+          Source: {result.source === "odoo" ? "Odoo + cache" : "Cache fallback"}
+        </div>
+        {result.warning ? (
+          <div className="inline-flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
+            <AlertTriangle className="size-4" aria-hidden />
+            {result.warning}
+          </div>
+        ) : null}
+      </section>
 
-          <InventoryGrid
-            key={gridStateKey}
-            rows={sortedRows}
-            canEdit={canEdit}
-            saving={isSaving}
-            onSave={handleSave}
-            sortField={sortField}
-            sortDirection={sortDirection}
-            onSortChange={handleSortChange}
-          />
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={result.total}
-            onPageChange={setPage}
-            onPageSizeChange={(nextPageSize) => {
-              setPage(1);
-              setPageSize(nextPageSize);
-            }}
-          />
-        </>
-      ) : (
-        <section className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-10 text-center text-sm text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400">
-          Run a search by product name or barcode to load cached or live Odoo
-          inventory data.
-        </section>
-      )}
+      <InventoryGrid
+        key={gridStateKey}
+        rows={sortedRows}
+        canEdit={canEdit}
+        saving={isSaving}
+        onSave={handleSave}
+        sortField={sortField}
+        sortDirection={sortDirection}
+        onSortChange={handleSortChange}
+      />
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={result.total}
+        onPageChange={setPage}
+        onPageSizeChange={(nextPageSize) => {
+          setPage(1);
+          setPageSize(nextPageSize);
+        }}
+      />
     </div>
   );
 }
